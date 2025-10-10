@@ -231,7 +231,7 @@ export const subscribers = pgTable("subscribers", {
 export const watermarkConfig = pgTable("watermark_config", {
 	id: serial().primaryKey().notNull(),
 	enabled: boolean().default(true).notNull(),
-	imageUrl: text("image_url").default('),
+	imageUrl: text("image_url").default(''),
 	position: text().default('bottom_right'),
 	opacity: integer().default(70),
 	size: integer().default(50),
