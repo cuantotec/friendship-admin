@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/simple-db";
 
-export async function updateArtwork(artworkId: number, updates: any) {
+export async function updateArtwork(artworkId: number, updates: Record<string, unknown>) {
   try {
     console.log("=== UPDATE ARTWORK ===");
     console.log("Artwork ID:", artworkId);
@@ -110,7 +110,7 @@ export async function deleteArtwork(artworkId: number) {
   }
 }
 
-export async function createArtwork(artworkData: any) {
+export async function createArtwork(artworkData: Record<string, unknown>) {
   try {
     console.log("=== CREATE ARTWORK ===");
     console.log("Artwork data:", artworkData);

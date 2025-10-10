@@ -82,7 +82,7 @@ export function NeonLoginForm() {
           
           <div className="text-center">
             <p className="text-xs text-gray-500">
-              We'll send you a secure link to sign in
+              We&apos;ll send you a secure link to sign in
             </p>
           </div>
         </form>

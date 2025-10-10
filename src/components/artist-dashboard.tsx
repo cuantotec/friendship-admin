@@ -26,8 +26,26 @@ import {
   Save
 } from "lucide-react";
 
-type Artist = any;
-type Artwork = any;
+type Artist = {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  artistID?: number;
+};
+
+type Artwork = {
+  id: number;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  price?: number;
+  isActive: boolean;
+  order: number;
+  artistId: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 interface ArtistDashboardProps {
   artist: Artist | null;

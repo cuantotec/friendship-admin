@@ -1,6 +1,6 @@
 import { Artwork } from "@/lib/schema";
 import { ArtworkCard } from "./artwork-card";
-import { Palette, AlertCircle } from "lucide-react";
+import { Palette } from "lucide-react";
 
 interface ArtworkGridProps {
   artworks: Artwork[];

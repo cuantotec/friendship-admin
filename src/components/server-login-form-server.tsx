@@ -17,7 +17,7 @@ export function ServerLoginForm({ error }: ServerLoginFormProps) {
         </div>
         <h2 className="text-xl font-semibold text-gray-900">Secure Sign In</h2>
         <p className="text-sm text-gray-600 mt-2">
-          Enter your email address and we'll send you a secure 6-digit code
+          Enter your email address and we&apos;ll send you a secure 6-digit code
         </p>
       </div>
 
@@ -50,7 +50,7 @@ export function ServerLoginForm({ error }: ServerLoginFormProps) {
         
         <div className="text-center">
           <p className="text-xs text-gray-500">
-            We'll send you a 6-digit code that expires in 10 minutes
+            We&apos;ll send you a 6-digit code that expires in 10 minutes
           </p>
         </div>
       </form>
