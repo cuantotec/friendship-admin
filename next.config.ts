@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['@neondatabase/serverless', 'pg'],
-  },
+  serverExternalPackages: ['@neondatabase/serverless', 'pg'],
   images: {
     domains: ['localhost'],
   },

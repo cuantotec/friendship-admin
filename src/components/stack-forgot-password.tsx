@@ -1,5 +1,5 @@
 import { ForgotPassword } from '@stackframe/stack';
 
-export const MyForgotPassword = () => {
+export const StackForgotPassword = () => {
   return <ForgotPassword fullPage={true} />;
 }

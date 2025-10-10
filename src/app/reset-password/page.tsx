@@ -1,5 +1,5 @@
-import { MyPasswordReset } from "@/components/stack-password-reset";
+import { StackForgotPassword } from "@/components/stack-forgot-password";
 
 export default function ResetPasswordPage() {
-  return <MyPasswordReset />;
+  return <StackForgotPassword />;
 }
