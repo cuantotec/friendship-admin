@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { StackProvider } from "@stackframe/stack";
-import { stackClientApp } from "@/stack/client";
+import { StackProvider, StackTheme } from "@stackframe/stack";
+import { stackServerApp } from "@/stack/server";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -31,11 +31,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <StackProvider app={stackClientApp}>
-          <TooltipProvider>
-            {children}
-            <Toaster />
-          </TooltipProvider>
+        <StackProvider app={stackServerApp}>
+          <StackTheme>
+            <TooltipProvider>
+              {children}
+              <Toaster />
+            </TooltipProvider>
+          </StackTheme>
         </StackProvider>
       </body>
     </html>
