@@ -65,6 +65,9 @@ export default function ArtworkModal({
           year: '',
           medium: '',
           dimensions: '',
+          widthCm: null,
+          heightCm: null,
+          depthCm: null,
           description: '',
           price: '0',
           status: 'Draft',
@@ -313,10 +316,19 @@ export default function ArtworkModal({
 
   const handleInputChange = (field: string, value: string | number | boolean) => {
     if (editedArtwork) {
-      setEditedArtwork({
-        ...editedArtwork,
-        [field]: value
-      });
+      // Handle 3D dimensions - convert empty strings to null for proper validation
+      if (['widthCm', 'heightCm', 'depthCm'].includes(field)) {
+        const numValue = value === '' ? null : (typeof value === 'string' ? parseFloat(value) : value);
+        setEditedArtwork({
+          ...editedArtwork,
+          [field]: isNaN(numValue as number) ? null : numValue
+        });
+      } else {
+        setEditedArtwork({
+          ...editedArtwork,
+          [field]: value
+        });
+      }
     }
   };
 
@@ -536,7 +548,7 @@ export default function ArtworkModal({
                 </div>
 
                 <div>
-                  <Label htmlFor="dimensions">Dimensions</Label>
+                  <Label htmlFor="dimensions">Display Dimensions</Label>
                   {isEditing ? (
                     <Input
                       id="dimensions"
@@ -548,6 +560,61 @@ export default function ArtworkModal({
                   ) : (
                     <p className="mt-1 text-gray-900">{currentArtwork?.dimensions || "Not specified"}</p>
                   )}
+                </div>
+
+                {/* 3D Dimensions Section */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-1">3D Dimensions (for AR/3D display)</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="widthCm">Width (cm)</Label>
+                      {isEditing ? (
+                        <Input
+                          id="widthCm"
+                          type="number"
+                          step="0.1"
+                          value={currentArtwork?.widthCm || ""}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("widthCm", e.target.value)}
+                          className="mt-1"
+                          placeholder="e.g., 60.5"
+                        />
+                      ) : (
+                        <p className="mt-1 text-gray-900">{currentArtwork?.widthCm ? `${currentArtwork.widthCm} cm` : "Not specified"}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="heightCm">Height (cm)</Label>
+                      {isEditing ? (
+                        <Input
+                          id="heightCm"
+                          type="number"
+                          step="0.1"
+                          value={currentArtwork?.heightCm || ""}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("heightCm", e.target.value)}
+                          className="mt-1"
+                          placeholder="e.g., 91.4"
+                        />
+                      ) : (
+                        <p className="mt-1 text-gray-900">{currentArtwork?.heightCm ? `${currentArtwork.heightCm} cm` : "Not specified"}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="depthCm">Depth (cm)</Label>
+                      {isEditing ? (
+                        <Input
+                          id="depthCm"
+                          type="number"
+                          step="0.1"
+                          value={currentArtwork?.depthCm || ""}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("depthCm", e.target.value)}
+                          className="mt-1"
+                          placeholder="e.g., 2.5"
+                        />
+                      ) : (
+                        <p className="mt-1 text-gray-900">{currentArtwork?.depthCm ? `${currentArtwork.depthCm} cm` : "Not specified"}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div>
