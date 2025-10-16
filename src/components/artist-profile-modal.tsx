@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,12 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
-  User
+  User,
+  Upload,
+  Image as ImageIcon,
+  X
 } from "lucide-react";
+import Image from "next/image";
 import type { Artist } from "@/types";
 
 interface ArtistProfileModalProps {
@@ -37,6 +41,9 @@ export default function ArtistProfileModal({
 }: ArtistProfileModalProps) {
   const [editedProfile, setEditedProfile] = useState<ArtistFormData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (artist && isOpen) {
@@ -48,6 +55,8 @@ export default function ArtistProfileModal({
           : null
       };
       setEditedProfile(profileData);
+      // Set image preview if profile image exists
+      setImagePreview(artist.profileImage || null);
     }
   }, [artist, isOpen]);
 
@@ -58,6 +67,90 @@ export default function ArtistProfileModal({
         [field]: value
       });
     }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select a valid image file", {
+        description: "Only image files are allowed",
+        icon: <XCircle className="h-4 w-4" />
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image too large", {
+        description: "Please select an image smaller than 5MB",
+        icon: <XCircle className="h-4 w-4" />
+      });
+      return;
+    }
+
+    setIsUploadingImage(true);
+    const loadingToast = toast.loading("Uploading image...", {
+      description: "Please wait while we upload your profile image."
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Upload failed');
+      }
+
+      // Update the profile with the new image URL
+      if (editedProfile) {
+        setEditedProfile({
+          ...editedProfile,
+          profileImage: result.originalUrl
+        });
+        setImagePreview(result.originalUrl);
+      }
+
+      toast.dismiss(loadingToast);
+      toast.success("Image uploaded successfully!", {
+        description: "Your profile image has been updated.",
+        icon: <CheckCircle className="h-4 w-4" />
+      });
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error("Failed to upload image", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        icon: <XCircle className="h-4 w-4" />
+      });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    if (editedProfile) {
+      setEditedProfile({
+        ...editedProfile,
+        profileImage: null
+      });
+      setImagePreview(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
   };
 
   const handleSave = async () => {
@@ -83,7 +176,8 @@ export default function ArtistProfileModal({
         name: editedProfile.name,
         bio: editedProfile.bio,
         specialty: editedProfile.specialty,
-        exhibitions: editedProfile.exhibitions
+        exhibitions: editedProfile.exhibitions,
+        profileImage: editedProfile.profileImage
       });
       
       if (result.success) {
@@ -125,6 +219,79 @@ export default function ArtistProfileModal({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Profile Image */}
+          <div>
+            <Label className="text-sm font-medium text-gray-700">
+              Profile Image
+            </Label>
+            <div className="mt-2">
+              <div className="flex items-center gap-4">
+                {/* Image Preview */}
+                <div className="relative">
+                  {imagePreview ? (
+                    <div className="relative group">
+                      <Image
+                        src={imagePreview}
+                        alt="Profile preview"
+                        width={80}
+                        height={80}
+                        className="w-20 h-20 rounded-full object-cover border-2 border-gray-200 cursor-pointer hover:border-blue-500 transition-colors"
+                        onClick={handleImageClick}
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveImage();
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      className="w-20 h-20 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-blue-500 transition-colors"
+                      onClick={handleImageClick}
+                    >
+                      <ImageIcon className="h-8 w-8 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Upload Button */}
+                <div className="flex-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleImageClick}
+                    disabled={isUploadingImage}
+                    className="flex items-center gap-2"
+                  >
+                    {isUploadingImage ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    {imagePreview ? "Change Image" : "Upload Image"}
+                  </Button>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Click to upload a profile image (max 5MB)
+                  </p>
+                </div>
+              </div>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+            </div>
+          </div>
+
           {/* Name */}
           <div>
             <Label htmlFor="name" className="text-sm font-medium text-gray-700">

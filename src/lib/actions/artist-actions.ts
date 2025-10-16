@@ -51,7 +51,8 @@ export async function updateArtistProfile(
       slug,
       bio: validatedData.bio || null,
       specialty: validatedData.specialty || null,
-      exhibitions: exhibitionsArray
+      exhibitions: exhibitionsArray,
+      profileImage: validatedData.profileImage || null
     });
 
     const result = await db
@@ -61,7 +62,8 @@ export async function updateArtistProfile(
         slug,
         bio: validatedData.bio || null,
         specialty: validatedData.specialty || null,
-        exhibitions: exhibitionsArray
+        exhibitions: exhibitionsArray,
+        profileImage: validatedData.profileImage || null
       })
       .where(eq(artists.id, artistId))
       .returning();
