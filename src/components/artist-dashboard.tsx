@@ -52,10 +52,10 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
   }, [artworks]);
 
   const stats = [
-    { name: "Total Artworks", value: artworksOrder.length.toString(), icon: Palette, change: "0", changeType: "positive" },
-    { name: "Available", value: artworksOrder.filter(a => a.status === "Available").length.toString(), icon: BarChart3, change: "0", changeType: "positive" },
-    { name: "Sold", value: artworksOrder.filter(a => a.status === "Sold").length.toString(), icon: DollarSign, change: "0", changeType: "positive" },
-    { name: "Total Value", value: `$${artworksOrder.reduce((sum, artwork) => sum + parseFloat(artwork.price.toString()), 0).toLocaleString()}`, icon: DollarSign, change: "0", changeType: "positive" },
+    { name: "Total Artworks", value: artworksOrder.length.toString(), icon: Palette },
+    { name: "Available", value: artworksOrder.filter(a => a.status === "Available").length.toString(), icon: BarChart3 },
+    { name: "Sold", value: artworksOrder.filter(a => a.status === "Sold").length.toString(), icon: DollarSign },
+    { name: "Total Value", value: `$${artworksOrder.reduce((sum, artwork) => sum + parseFloat(artwork.price.toString()), 0).toLocaleString()}`, icon: DollarSign },
   ];
 
   const handleArtworkClick = (artwork: Artwork) => {
@@ -272,9 +272,6 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
                     <dd className="flex items-baseline">
                       <div className="text-2xl font-semibold text-gray-900">
                         {stat.value}
-                      </div>
-                      <div className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
-                        {stat.change}
                       </div>
                     </dd>
                   </dl>
