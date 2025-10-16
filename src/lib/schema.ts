@@ -9,6 +9,7 @@ import {
   boolean,
   jsonb,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
@@ -27,6 +28,20 @@ export const artists = pgTable("artists", {
   isVisible: boolean("is_visible").default(true).notNull(),
   featured: boolean("featured").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Artist Invitations Table
+export const artistInvitations = pgTable("artist_invitations", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  name: text("name").notNull(),
+  specialty: text("specialty"),
+  message: text("message"),
+  code: text("code").notNull().unique(),
+  invitedBy: text("invited_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  usedAt: timestamp("used_at"),
+  expiresAt: timestamp("expires_at").default(sql`NOW() + INTERVAL '7 days'`),
 });
 
 // Artworks Table (reusing from original schema)

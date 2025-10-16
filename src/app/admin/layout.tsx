@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { stackServerApp } from "@/stack/server";
 import Link from "next/link";
-import { Home, Palette, Users, Calendar, LogOut } from "lucide-react";
+import { Home, Palette, Users, Calendar, LogOut, Menu, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MobileAdminNav } from "@/components/admin/mobile-admin-nav";
 
 export default async function AdminLayout({
   children,
@@ -31,9 +32,14 @@ export default async function AdminLayout({
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
+    <div className="min-h-screen bg-gray-50">
+      {/* Mobile Navigation */}
+      <MobileAdminNav navigation={navigation} user={user} />
+      
+      {/* Desktop Layout */}
+      <div className="hidden lg:flex h-screen">
+        {/* Sidebar */}
+        <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         {/* Logo/Header */}
         <div className="p-6 border-b border-gray-200">
           <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
@@ -84,12 +90,20 @@ export default async function AdminLayout({
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {children}
+          </div>
+        </main>
+      </div>
+
+      {/* Mobile Content */}
+      <div className="lg:hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
           {children}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

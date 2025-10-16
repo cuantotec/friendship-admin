@@ -1,7 +1,7 @@
 import { getAllEvents } from "@/lib/actions/admin-actions";
 import EventsTable from "@/components/admin/events-table";
 import EventsFilters from "@/components/admin/events-filters";
-import { Card, CardContent } from "@/components/ui/card";
+import EventsPageClient from "@/components/admin/events-page-client";
 
 export const dynamic = "force-dynamic";
 
@@ -45,43 +45,11 @@ export default async function AdminEventsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Events Management</h1>
-        <p className="text-gray-600 mt-2">
-          View, edit, and manage all events in the gallery
-        </p>
-      </div>
+      {/* Client component for interactive features */}
+      <EventsPageClient events={filteredEvents} stats={stats} />
 
       {/* Filters - Client component for form interaction only */}
       <EventsFilters />
-
-      {/* Stats - Server-rendered */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-gray-600">Total Events</div>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-gray-600">Active Events</div>
-            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-gray-600">Canceled</div>
-            <div className="text-2xl font-bold text-red-600">{stats.canceled}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-gray-600">Recurring</div>
-            <div className="text-2xl font-bold text-blue-600">{stats.recurring}</div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Table - Server-rendered with server actions */}
       <EventsTable events={filteredEvents} />
