@@ -11,7 +11,7 @@ A comprehensive email system for The Friendship Center Gallery Admin with profes
 - **Type Safety**: Full TypeScript support
 - **Resend Integration**: Reliable email delivery service
 - **Dedicated Email Addresses**:
-  - Admin emails: `admin@friendshipcentergallery.org`
+  - Admin emails: `eliran@cuantotec.com`
   - Artist emails: `artists@friendshipcentergallery.org`
   - General emails: `noreply@friendshipcentergallery.org`
 
@@ -31,8 +31,8 @@ Add to your `.env.local`:
 # Resend API Key (required for email sending)
 RESEND_API_KEY=your_resend_api_key_here
 
-# Admin Emails (JSON array, optional - defaults to admin@friendshipcentergallery.org)
-ADMIN_EMAILS='[{"email":"admin@friendshipcentergallery.org","name":"Gallery Admin"}]'
+# Admin Emails (JSON array, optional - defaults to eliran@cuantotec.com)
+ADMIN_EMAILS='[{"email":"eliran@cuantotec.com","name":"Gallery Admin"}]'
 
 # Base URL for links in emails
 NEXT_PUBLIC_BASE_URL=http://localhost:3002
@@ -74,7 +74,7 @@ await sendArtistWelcome({
   artistName: 'Jane Doe',
   artistEmail: 'jane@example.com',
   dashboardUrl: 'https://admin.friendshipcentergallery.org/dashboard',
-  supportEmail: 'support@friendshipcentergallery.org'
+  supportEmail: 'eliran@cuantotec.com'
 });
 ```
 
@@ -106,7 +106,7 @@ await sendArtworkRejection({
   artworkTitle: 'Abstract Piece',
   artworkId: '12346',
   rejectionReason: 'The image quality does not meet our gallery standards. Please resubmit with higher resolution photos.',
-  adminContact: 'admin@friendshipcentergallery.org'
+  adminContact: 'eliran@cuantotec.com'
 });
 ```
 
@@ -360,7 +360,7 @@ Before deploying to production:
 ## Support
 
 For issues or questions:
-- Email: admin@friendshipcentergallery.org
+- Email: eliran@cuantotec.com
 - Documentation: This README
 - Resend Docs: [resend.com/docs](https://resend.com/docs)
 

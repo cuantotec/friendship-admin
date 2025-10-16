@@ -70,7 +70,7 @@ async function runTests() {
     artistName: TEST_NAME,
     artistEmail: TEST_EMAIL,
     dashboardUrl: 'http://localhost:3002/dashboard',
-    supportEmail: 'support@friendshipcentergallery.org'
+    supportEmail: 'eliran@cuantotec.com'
   });
 
   if (welcomeResult.success) {
@@ -102,7 +102,7 @@ async function runTests() {
     artworkTitle: 'Test Artwork - Abstract Piece',
     artworkId: '12346',
     rejectionReason: 'This is a test rejection. In a real scenario, we would provide specific feedback about image quality, composition, or gallery fit.',
-    adminContact: 'admin@friendshipcentergallery.org'
+    adminContact: 'eliran@cuantotec.com'
   });
 
   if (rejectionResult.success) {

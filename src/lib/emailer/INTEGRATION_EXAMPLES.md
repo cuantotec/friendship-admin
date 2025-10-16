@@ -173,7 +173,7 @@ export async function rejectArtwork(
       artworkTitle: artwork.title,
       artworkId: artwork.id,
       rejectionReason: rejectionReason,
-      adminContact: 'admin@friendshipcentergallery.org'
+      adminContact: 'eliran@cuantotec.com'
     });
 
     return { success: true, message: 'Artwork rejected and artist notified' };
@@ -288,7 +288,7 @@ export async function completeArtistRegistration(formData: FormData) {
       artistName: artist.name,
       artistEmail: artist.email,
       dashboardUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`,
-      supportEmail: 'support@friendshipcentergallery.org'
+      supportEmail: 'eliran@cuantotec.com'
     });
 
     return { 

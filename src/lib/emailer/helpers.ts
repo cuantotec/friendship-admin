@@ -98,7 +98,7 @@ export function getAdminEmails(): Array<{ email: string; name: string }> {
   
   // Default admin emails
   return [
-    { email: 'admin@friendshipcentergallery.org', name: 'Gallery Admin' }
+    { email: 'eliran@cuantotec.com', name: 'Gallery Admin' }
   ];
 }
 
