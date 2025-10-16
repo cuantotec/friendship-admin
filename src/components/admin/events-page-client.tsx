@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Clock, MapPin, Users } from "lucide-react";
+import { Plus, Calendar, Clock, MapPin } from "lucide-react";
 import type { EventListItem } from "@/types";
 
 interface EventsPageClientProps {
@@ -16,7 +16,6 @@ interface EventsPageClientProps {
 }
 
 export default function EventsPageClient({ events, stats }: EventsPageClientProps) {
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
   return (
     <div className="space-y-6">

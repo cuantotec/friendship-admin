@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
-import { ArtistInvitationModal } from "./artist-invitation-modal";
+import ArtistInvitationModal from "./artist-invitation-modal";
 import type { ArtistListItem } from "@/types";
 
 interface ArtistsPageClientProps {

@@ -15,6 +15,13 @@
       "when": 1760380558475,
       "tag": "0001_overjoyed_sharon_carter",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1760648601718,
+      "tag": "0002_first_midnight",
+      "breakpoints": true
     }
   ]
 }

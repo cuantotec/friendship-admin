@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { stackServerApp } from "@/stack/server";
 import Link from "next/link";
-import { Home, Palette, Users, Calendar, LogOut, Menu, X, Plus } from "lucide-react";
+import { Home, Palette, Users, Calendar, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileAdminNav } from "@/components/admin/mobile-admin-nav";
 
