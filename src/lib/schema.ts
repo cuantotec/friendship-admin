@@ -17,7 +17,7 @@ import { z } from "zod";
 export const artists = pgTable("artists", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  slug: text("slug").unique(),
+  slug: text("slug").notNull().unique(),
   bio: text("bio"),
   profileImage: text("profile_image"),
   specialty: text("specialty"),
@@ -271,10 +271,6 @@ export const artistInsertSchema = createInsertSchema(artists, {
   name: (schema) => schema.min(2, "Name must be at least 2 characters"),
   bio: (schema) => schema.min(10, "Bio must be at least 10 characters"),
   profileImage: (schema) => schema.url("Profile image must be a valid URL"),
-  email: (schema) =>
-    schema
-      .email("Must be a valid email address")
-      .transform((val) => val?.toLowerCase()),
 });
 
 
@@ -304,7 +300,7 @@ export const eventInsertSchema = createInsertSchema(events, {
   endDate: (schema) =>
     schema
       .nullish()
-      .transform((value: string | Date | null) => (value ? new Date(value) : null)),
+      .transform((value: string | Date | null | undefined) => (value ? new Date(value) : null)),
   formTemplateId: (schema) => schema.nullish(),
   registrationEnabled: (schema) => schema.optional(),
   slug: (schema) => schema.optional(),

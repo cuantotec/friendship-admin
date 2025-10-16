@@ -1,57 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stackServerApp } from "@/stack/server";
+// import { stackServerApp } from "@/stack/server";
 
-export async function POST(request: NextRequest) {
+// Note: This route is deprecated in favor of Stack Auth's built-in password reset flow
+// Stack Auth handles password reset automatically through their UI components
+
+export async function POST(_request: NextRequest) {
   try {
-    const { email, action, token, newPassword } = await request.json();
+    // const { email, action, token, newPassword } = await request.json();
 
-    if (action === "send") {
-      // Send password reset email
-      if (!email) {
-        return NextResponse.json(
-          { error: "Email is required" },
-          { status: 400 }
-        );
-      }
-
-      await stackServerApp.sendPasswordResetEmail({ email });
-
-      return NextResponse.json({
-        success: true,
-        message: "Password reset email sent successfully"
-      });
-    }
-
-    if (action === "reset") {
-      // Reset password with token
-      if (!token || !newPassword || !email) {
-        return NextResponse.json(
-          { error: "Token, email, and new password are required" },
-          { status: 400 }
-        );
-      }
-
-      // Verify token first
-      const isValid = await stackServerApp.verifyPasswordResetToken({ token, email });
-      
-      if (!isValid) {
-        return NextResponse.json(
-          { error: "Invalid or expired password reset token" },
-          { status: 400 }
-        );
-      }
-
-      // Reset the password
-      await stackServerApp.resetPassword({ token, email, newPassword });
-
-      return NextResponse.json({
-        success: true,
-        message: "Password reset successfully"
-      });
-    }
-
+    // Stack Auth handles password reset through their built-in flow
+    // This endpoint is kept for backwards compatibility but returns a redirect message
+    
     return NextResponse.json(
-      { error: "Invalid action" },
+      { 
+        error: "Please use Stack Auth's password reset flow",
+        message: "Password reset is handled by Stack Auth. Please use the forgot password link on the login page."
+      },
       { status: 400 }
     );
 

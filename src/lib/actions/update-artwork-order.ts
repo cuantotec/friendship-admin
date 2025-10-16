@@ -1,8 +1,14 @@
 "use server";
 
-import { db } from "@/lib/simple-db";
+import { db } from "@/lib/db";
+import { artworks } from "@/lib/schema";
+import type { ArtworkUpdateOrderData, ApiResponse } from "@/types";
+import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
-export async function updateArtworkOrder(artworkUpdates: Array<{ id: number; artistLocationId: number }>) {
+export async function updateArtworkOrder(
+  artworkUpdates: ArtworkUpdateOrderData[]
+): Promise<ApiResponse<{ updatedCount: number }>> {
   try {
     console.log("=== UPDATE ARTWORK ORDER ===");
     console.log("Artwork updates:", artworkUpdates);
@@ -14,24 +20,23 @@ export async function updateArtworkOrder(artworkUpdates: Array<{ id: number; art
       };
     }
 
-    // Update each artwork's artist location ID
+    // Update each artwork's artist location ID using Drizzle
     for (const update of artworkUpdates) {
-      const query = `
-        UPDATE artworks 
-        SET artist_display_order = $1
-        WHERE id = $2
-        RETURNING id, title, artist_display_order
-      `;
-      
-      const params = [update.artistLocationId, update.id];
-      
       console.log(`Updating artwork ${update.id} with artist_display_order ${update.artistLocationId}`);
-      console.log("Query:", query);
-      console.log("Params:", params);
       
-      const result = await db.execute(query, params);
+      const result = await db
+        .update(artworks)
+        .set({
+          artistDisplayOrder: update.artistLocationId
+        })
+        .where(eq(artworks.id, update.id))
+        .returning({
+          id: artworks.id,
+          title: artworks.title,
+          artistDisplayOrder: artworks.artistDisplayOrder
+        });
       
-      if (result.rows.length === 0) {
+      if (result.length === 0) {
         console.log(`No artwork found with ID: ${update.id}`);
         return {
           success: false,
@@ -39,10 +44,16 @@ export async function updateArtworkOrder(artworkUpdates: Array<{ id: number; art
         };
       }
       
-      console.log(`Successfully updated artwork ${update.id}:`, result.rows[0]);
+      console.log(`Successfully updated artwork ${update.id}:`, result[0]);
     }
 
     console.log("All artwork orders updated successfully");
+    
+    // Revalidate ISR for all pages that display artwork data
+    revalidatePath("/");
+    revalidatePath("/admin");
+    revalidatePath("/admin/artworks");
+    
     return {
       success: true,
       data: { updatedCount: artworkUpdates.length }

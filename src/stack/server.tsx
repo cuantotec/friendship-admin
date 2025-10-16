@@ -1,7 +1,10 @@
 import "server-only";
+import { StackServerApp } from "@stackframe/stack";
 
-// Temporary placeholder for Stack server app
-export const stackServerApp = {
-  getUser: async () => null,
-  getProject: async () => null,
-};
+export const stackServerApp = new StackServerApp({
+  tokenStore: "nextjs-cookie",
+  urls: {
+    signIn: '/login',
+    passwordReset: '/forgot-password',
+  },
+});

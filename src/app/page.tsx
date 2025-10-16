@@ -1,23 +1,27 @@
 import { stackServerApp } from "@/stack/server";
 import { redirect } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { signOut } from "@/lib/actions/signout";
 import { isUserAdmin } from "@/lib/stack-auth-helpers";
 import { getArtistById } from "@/lib/actions/get-artist";
+import { getAdminStats, getAllArtworks } from "@/lib/actions/admin-actions";
 import ArtistDashboard from "@/components/artist-dashboard";
 import { 
   Users, 
   Palette, 
   Calendar, 
   Mail, 
-  BarChart3, 
-  Settings,
   User,
-  LogOut
+  LogOut,
+  DollarSign
 } from "lucide-react";
+import type { AdminStats, ArtworkListItem } from "@/types";
+
+export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
   const user = await stackServerApp.getUser();
@@ -29,17 +33,33 @@ export default async function Dashboard() {
   // Get user role
   const isAdmin = await isUserAdmin();
   
-  // Get artist data using server action
-  const artistResult = await getArtistById();
+  // Get admin or artist data based on role
+  let adminStats: AdminStats | null = null;
+  let adminArtworks: ArtworkListItem[] | null = null;
+  let artistData: { artist: import("@/types").Artist; artworks: import("@/types").ArtworkWithDisplayOrder[] } | null = null;
   
-  if (!artistResult.success) {
-    console.error("Failed to fetch artist data:", artistResult.error);
-  }
+  if (isAdmin) {
+    // Fetch admin data
+    try {
+      adminStats = await getAdminStats();
+      adminArtworks = await getAllArtworks();
+    } catch (error) {
+      console.error("Failed to fetch admin data:", error);
+    }
+  } else {
+    // Get artist data using server action
+    const artistResult = await getArtistById();
+    
+    if (!artistResult.success) {
+      console.error("Failed to fetch artist data:", artistResult.error);
+    }
 
-  const artistData = artistResult.success ? artistResult.data : null;
+    artistData = artistResult.success ? artistResult.data : null;
+  }
+  
   const artist = artistData?.artist;
   const artworks = artistData?.artworks || [];
-  const errorMessage = artistResult.success ? null : artistResult.error;
+  const errorMessage = !isAdmin && !artistData ? "Artist data not found" : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
@@ -102,7 +122,7 @@ export default async function Dashboard() {
         </div>
 
         {isAdmin ? (
-          <AdminDashboard />
+          <AdminDashboard stats={adminStats} recentArtworks={adminArtworks || []} />
         ) : errorMessage ? (
           <ErrorDisplay error={errorMessage} />
         ) : (
@@ -150,29 +170,66 @@ function ErrorDisplay({ error }: { error: string }) {
   );
 }
 
-function AdminDashboard() {
-  const stats = [
-    { name: "Total Artists", value: "24", icon: Users, change: "+2", changeType: "positive" },
-    { name: "Active Artworks", value: "156", icon: Palette, change: "+12", changeType: "positive" },
-    { name: "Upcoming Events", value: "8", icon: Calendar, change: "+1", changeType: "positive" },
-    { name: "New Inquiries", value: "23", icon: Mail, change: "+5", changeType: "positive" },
-  ];
+function AdminDashboard({ 
+  stats, 
+  recentArtworks 
+}: { 
+  stats: AdminStats | null; 
+  recentArtworks: ArtworkListItem[];
+}) {
+  const activeArtworks = recentArtworks
+    .filter((artwork) => artwork.isVisible)
+    .slice(0, 8);
+
+  const statsCards = stats ? [
+    {
+      name: "Total Artworks",
+      value: stats.totalArtworks,
+      icon: Palette,
+      color: "text-purple-600",
+      bgColor: "bg-purple-100",
+    },
+    {
+      name: "Artworks Worth",
+      value: `$${parseFloat(stats.artworksWorth).toLocaleString()}`,
+      icon: DollarSign,
+      color: "text-green-600",
+      bgColor: "bg-green-100",
+    },
+    {
+      name: "Total Artists",
+      value: stats.totalArtists,
+      icon: Users,
+      color: "text-blue-600",
+      bgColor: "bg-blue-100",
+    },
+    {
+      name: "Active Events",
+      value: stats.activeEvents,
+      icon: Calendar,
+      color: "text-orange-600",
+      bgColor: "bg-orange-100",
+    },
+  ] : [];
 
   return (
     <div className="space-y-8">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.name} className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50 hover:shadow-xl transition-all duration-200">
+        {statsCards.map((stat) => (
+          <Card key={stat.name} className="border-gray-200 hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">{stat.name}</p>
-                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-sm text-green-600 font-medium">{stat.change} from last month</p>
+              <div className="flex items-center">
+                <div className={`flex-shrink-0 p-3 rounded-lg ${stat.bgColor}`}>
+                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
                 </div>
-                <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <stat.icon className="h-6 w-6 text-white" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    {stat.name}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stat.value}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -181,42 +238,116 @@ function AdminDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50">
+      <Card className="border-gray-200">
         <CardHeader>
-          <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent">
-            Quick Actions
-          </CardTitle>
+          <CardTitle className="text-xl">Quick Actions</CardTitle>
           <CardDescription className="text-gray-600">
             Common administrative tasks
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Button variant="outline" className="h-20 flex-col rounded-xl hover:shadow-lg transition-all duration-200 border-gray-200 hover:border-blue-300">
-              <Users className="h-6 w-6 mb-2 text-blue-600" />
-              <span className="font-medium">Manage Artists</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col rounded-xl hover:shadow-lg transition-all duration-200 border-gray-200 hover:border-purple-300">
-              <Palette className="h-6 w-6 mb-2 text-purple-600" />
-              <span className="font-medium">Manage Artworks</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col rounded-xl hover:shadow-lg transition-all duration-200 border-gray-200 hover:border-green-300">
-              <Calendar className="h-6 w-6 mb-2 text-green-600" />
-              <span className="font-medium">Manage Events</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col rounded-xl hover:shadow-lg transition-all duration-200 border-gray-200 hover:border-orange-300">
-              <Mail className="h-6 w-6 mb-2 text-orange-600" />
-              <span className="font-medium">View Inquiries</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col rounded-xl hover:shadow-lg transition-all duration-200 border-gray-200 hover:border-indigo-300">
-              <BarChart3 className="h-6 w-6 mb-2 text-indigo-600" />
-              <span className="font-medium">Analytics</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col rounded-xl hover:shadow-lg transition-all duration-200 border-gray-200 hover:border-gray-400">
-              <Settings className="h-6 w-6 mb-2 text-gray-600" />
-              <span className="font-medium">Settings</span>
-            </Button>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Link href="/admin/artworks">
+              <Button variant="outline" className="w-full h-24 flex-col gap-2">
+                <Palette className="h-6 w-6 text-purple-600" />
+                <span className="font-medium">Manage Artworks</span>
+              </Button>
+            </Link>
+            <Link href="/admin/artists">
+              <Button variant="outline" className="w-full h-24 flex-col gap-2">
+                <Users className="h-6 w-6 text-blue-600" />
+                <span className="font-medium">Manage Artists</span>
+              </Button>
+            </Link>
+            <Link href="/admin/events">
+              <Button variant="outline" className="w-full h-24 flex-col gap-2">
+                <Calendar className="h-6 w-6 text-orange-600" />
+                <span className="font-medium">Manage Events</span>
+              </Button>
+            </Link>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Active Artworks Section */}
+      <Card className="border-gray-200">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-xl">Active Artworks</CardTitle>
+            <p className="text-sm text-gray-600 mt-1">
+              Currently visible artworks in the gallery
+            </p>
+          </div>
+          <Link href="/admin/artworks">
+            <Button variant="outline">View All</Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {activeArtworks.length === 0 ? (
+            <div className="text-center py-12">
+              <Palette className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                No active artworks
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Get started by creating a new artwork.
+              </p>
+              <div className="mt-6">
+                <Link href="/admin/artworks">
+                  <Button>
+                    <Palette className="mr-2 h-4 w-4" />
+                    Go to Artworks
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {activeArtworks.map((artwork) => (
+                <Link
+                  key={artwork.id}
+                  href={`/admin/artworks`}
+                  className="group cursor-pointer"
+                >
+                  <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                    {artwork.watermarkedImage ? (
+                      <Image
+                        src={artwork.watermarkedImage}
+                        alt={artwork.title}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center">
+                        <Palette className="h-8 w-8 text-gray-400" />
+                      </div>
+                    )}
+                    <div className="absolute top-2 right-2">
+                      <Badge className="bg-green-600 text-white">
+                        {artwork.location}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <h4 className="text-sm font-medium text-gray-900 truncate">
+                      {artwork.title}
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      {artwork.artistName}
+                    </p>
+                    <div className="flex items-center justify-between mt-1">
+                      <Badge variant="secondary" className="text-xs">
+                        {artwork.status}
+                      </Badge>
+                      <span className="text-sm font-medium text-green-600">
+                        ${parseFloat(artwork.price).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

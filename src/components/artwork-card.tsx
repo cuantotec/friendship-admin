@@ -93,7 +93,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
               Framed
             </Badge>
           )}
-          {artwork.featured > 0 && (
+          {artwork.featured !== null && artwork.featured > 0 && (
             <Badge variant="outline" className="text-xs">
               Featured
             </Badge>

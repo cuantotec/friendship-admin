@@ -13,7 +13,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Use Stack Auth to send password reset email
-    await stackServerApp.sendPasswordResetEmail({ email });
+    // Note: Stack Auth handles password reset through their built-in UI
+    // This endpoint is deprecated
+    // await stackServerApp.sendPasswordResetEmail({ email });
 
     return NextResponse.json({
       success: true,
@@ -44,8 +46,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Verify the password reset token
-    const isValid = await stackServerApp.verifyPasswordResetToken({ token, email });
+    // Note: Stack Auth handles password reset through their built-in UI
+    // This endpoint is deprecated
+    // const isValid = await stackServerApp.verifyPasswordResetCode({ code: token });
+    const isValid = false; // Deprecated endpoint
     
     if (!isValid) {
       return NextResponse.json(

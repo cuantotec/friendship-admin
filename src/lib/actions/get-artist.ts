@@ -1,9 +1,15 @@
 "use server";
 
-import { db } from "@/lib/simple-db";
+import { db } from "@/lib/db";
+import { artists, artworks } from "@/lib/schema";
 import { getArtistId } from "@/lib/stack-auth-helpers";
+import type { Artist, ArtworkWithDisplayOrder, ApiResponse } from "@/types";
+import { requireArtistAccess } from "@/lib/auth-helpers";
+import { eq, count, asc, desc } from "drizzle-orm";
 
-export async function getArtistById(artistId?: number) {
+export async function getArtistById(
+  artistId?: number
+): Promise<ApiResponse<{ artist: Artist; artworks: ArtworkWithDisplayOrder[] }>> {
   try {
     // If no artistId provided, get from current user
     const currentArtistId = artistId || await getArtistId();
@@ -18,41 +24,20 @@ export async function getArtistById(artistId?: number) {
       };
     }
 
-    // Simple query: get artist and artworks in one query with JOIN
-    const result = await db.execute(`
-      SELECT 
-        a.id as artist_id,
-        a.name as artist_name,
-        a.slug as artist_slug,
-        a.bio as artist_bio,
-        a.profile_image,
-        a.specialty,
-        a.exhibitions,
-        a.is_hidden,
-        a.is_visible,
-        a.featured as artist_featured,
-        a.created_at as artist_created_at,
-        w.id as artwork_id,
-        w.title as artwork_title,
-        w.slug as artwork_slug,
-        w.year,
-        w.medium,
-        w.dimensions,
-        w.description,
-        w.price,
-        w.status,
-        w.original_image,
-        w.watermarked_image,
-        w.featured as artwork_featured,
-        w.artist_display_order,
-        w.created_at as artwork_created_at
-      FROM artists a
-      LEFT JOIN artworks w ON a.id = w.artist_id
-      WHERE a.id = ${currentArtistId}
-      ORDER BY w.artist_display_order ASC, w.created_at DESC
-    `);
+    // Check authorization: must be admin or the artist themselves
+    await requireArtistAccess(currentArtistId);
+
+    // Get artist with artworks using Drizzle query
+    const artistData = await db.query.artists.findFirst({
+      where: eq(artists.id, currentArtistId),
+      with: {
+        artworks: {
+          orderBy: [asc(artworks.artistDisplayOrder), desc(artworks.createdAt)]
+        }
+      }
+    });
     
-    if (result.rows.length === 0) {
+    if (!artistData) {
       console.log(`Artist with ID ${currentArtistId} not found in database`);
       return {
         success: false,
@@ -60,54 +45,67 @@ export async function getArtistById(artistId?: number) {
       };
     }
 
-    // Process the JOIN result
-    const firstRow = result.rows[0];
-    const artist = {
-      id: firstRow.artist_id,
-      name: firstRow.artist_name,
-      slug: firstRow.artist_slug,
-      bio: firstRow.artist_bio,
-      profileImage: firstRow.profile_image,
-      specialty: firstRow.specialty,
-      exhibitions: firstRow.exhibitions,
-      isHidden: firstRow.is_hidden,
-      isVisible: firstRow.is_visible,
-      featured: firstRow.artist_featured,
-      createdAt: firstRow.artist_created_at
-    };
-
-    // Extract artworks (filter out null artwork rows)
-    const allArtworks = result.rows.filter(row => row.artwork_id !== null);
-    
     // Get total count of available artworks for global location ID
-    const totalAvailableArtworks = await db.execute(`
-      SELECT COUNT(*) as count FROM artworks WHERE status = 'Available'
-    `);
-    const totalAvailable = parseInt(totalAvailableArtworks.rows[0].count as string);
+    const totalAvailableResult = await db
+      .select({ count: count() })
+      .from(artworks)
+      .where(eq(artworks.status, 'Available'));
     
-    // Calculate location IDs for each artwork
-    const artworks = allArtworks.map((row, index) => ({
-      id: row.artwork_id,
-      title: row.artwork_title,
-      slug: row.artwork_slug,
-      artistId: row.artist_id,
-      year: row.year,
-      medium: row.medium,
-      dimensions: row.dimensions,
-      description: row.description,
-      price: row.price,
-      status: row.status,
-      originalImage: row.original_image,
-      watermarkedImage: row.watermarked_image,
-      featured: row.artwork_featured,
-      createdAt: row.artwork_created_at,
+    const totalAvailable = totalAvailableResult[0]?.count || 0;
+    
+    // Map artworks with location IDs
+    const artworksWithLocation: ArtworkWithDisplayOrder[] = artistData.artworks.map((artwork, index) => ({
+      id: artwork.id,
+      title: artwork.title,
+      slug: artwork.slug || '',
+      artistId: artwork.artistId,
+      year: artwork.year,
+      medium: artwork.medium,
+      dimensions: artwork.dimensions,
+      description: artwork.description,
+      price: artwork.price,
+      status: artwork.status,
+      originalImage: artwork.originalImage || null,
+      watermarkedImage: artwork.watermarkedImage || null,
+      watermarkedImagesHistory: artwork.watermarkedImagesHistory || [],
+      privateImages: artwork.privateImages || [],
+      featured: artwork.featured || 0,
+      widthCm: artwork.widthCm || null,
+      heightCm: artwork.heightCm || null,
+      depthCm: artwork.depthCm || null,
+      model3dUrl: artwork.model3dUrl || null,
+      has3dModel: artwork.has3dModel || false,
+      studioVisualizationUrl: artwork.studioVisualizationUrl || null,
+      hasStudioVisualization: artwork.hasStudioVisualization || false,
+      show3D: artwork.show3D || false,
+      isSculpture: artwork.isSculpture || false,
+      isFramed: artwork.isFramed || false,
+      location: artwork.location || 'Gallery',
+      isVisible: artwork.isVisible !== false,
+      artistDisplayOrder: artwork.artistDisplayOrder || null,
+      globalDisplayOrder: artwork.globalDisplayOrder || null,
+      createdAt: artwork.createdAt,
       // Location IDs
       globalLocationId: Math.floor(Math.random() * totalAvailable) + 1, // Random between 1 and total available
-      artistLocationId: row.artist_display_order || index + 1 // Use database order or fallback to index
+      artistLocationId: artwork.artistDisplayOrder || index + 1 // Use database order or fallback to index
     }));
 
-    console.log(`Found artist: ${artist.name} with ${artworks.length} artworks`);
-    console.log('Artwork location IDs:', artworks.map(a => ({
+    const artist: Artist = {
+      id: artistData.id,
+      name: artistData.name,
+      slug: artistData.slug,
+      bio: artistData.bio || null,
+      profileImage: artistData.profileImage || null,
+      specialty: artistData.specialty || null,
+      exhibitions: artistData.exhibitions || null,
+      isHidden: artistData.isHidden || false,
+      isVisible: artistData.isVisible,
+      featured: artistData.featured,
+      createdAt: artistData.createdAt
+    };
+
+    console.log(`Found artist: ${artist.name} with ${artworksWithLocation.length} artworks`);
+    console.log('Artwork location IDs:', artworksWithLocation.map(a => ({
       title: a.title,
       globalLocationId: a.globalLocationId,
       artistLocationId: a.artistLocationId
@@ -117,7 +115,7 @@ export async function getArtistById(artistId?: number) {
       success: true,
       data: {
         artist,
-        artworks
+        artworks: artworksWithLocation
       }
     };
   } catch (error) {

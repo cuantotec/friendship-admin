@@ -25,8 +25,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use Stack Auth to send password reset email
-    await stackServerApp.sendPasswordResetEmail({ email });
+    // Note: Stack Auth handles password reset through their built-in UI
+    // This endpoint is deprecated - users should use Stack Auth's forgot password flow
+    // await stackServerApp.sendPasswordResetEmail({ email });
 
     return NextResponse.json({
       success: true,

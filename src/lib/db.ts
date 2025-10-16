@@ -15,12 +15,6 @@ if (!process.env.DATABASE_URL) {
 console.log('Initializing database connection...');
 console.log('Database URL configured:', process.env.DATABASE_URL ? 'Yes' : 'No');
 
-// Get the pooled connection URL for better stability
-const getPooledConnectionString = (databaseUrl: string) => {
-  // Change the URL to use Neon's connection pooler
-  return databaseUrl.replace('.us-east-1.aws.neon.tech', '-pooler.us-east-1.aws.neon.tech');
-};
-
 // Connection retry configuration
 const RETRY_CONFIG = {
   maxRetries: 3,
@@ -30,13 +24,13 @@ const RETRY_CONFIG = {
 
 // Optimized connection pool for serverless deployment with resilience
 export const pool = new Pool({ 
-  connectionString: getPooledConnectionString(process.env.DATABASE_URL!),
-  max: 3, // Further reduced for stability
-  min: 1, // Maintain minimum connections
+  connectionString: process.env.DATABASE_URL!,
+  max: 10, // Max connections in pool
+  min: 0, // No minimum connections (better for serverless)
   idleTimeoutMillis: 30000, // 30 second idle timeout
   connectionTimeoutMillis: 10000, // 10 second connection timeout
-  allowExitOnIdle: false, // Keep pool alive
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  allowExitOnIdle: true, // Allow pool to exit when idle (better for serverless)
+  ssl: { rejectUnauthorized: false }, // Required for Neon SSL
   // Enhanced error handling
   query_timeout: 25000, // 25 second query timeout
   keepAlive: true,
@@ -143,10 +137,10 @@ pool.on('error', (err: unknown) => {
   }
 });
 
-pool.on('connect', (client) => {
+pool.on('connect', (client: { query: (query: string) => Promise<unknown> }) => {
   console.log('New database connection established');
   // Set connection-level timeouts
-  client.query('SET statement_timeout = 25000').catch(e => console.log('Failed to set timeout:', e.message));
+  client.query('SET statement_timeout = 25000').catch((e: Error) => console.log('Failed to set timeout:', e.message));
 });
 
 pool.on('remove', () => {

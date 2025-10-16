@@ -5,8 +5,8 @@ export async function getUserRole(): Promise<string | null> {
     const user = await stackServerApp.getUser();
     if (!user) return null;
     
-    // Check serverMetadata first, then clientMetadata for role
-    return user.serverMetadata?.role || user.clientMetadata?.role || 'artist'; // Default to artist if no role set
+    // ONLY use serverMetadata for security (clientMetadata is not secure)
+    return user.serverMetadata?.role || 'artist'; // Default to artist if no role set
   } catch (error) {
     console.error("Error getting user role:", error);
     return null;
@@ -18,8 +18,8 @@ export async function getArtistId(): Promise<number | null> {
     const user = await stackServerApp.getUser();
     if (!user) return null;
     
-    // Check serverMetadata first, then clientMetadata for artistID
-    const artistId = user.serverMetadata?.artistID || user.clientMetadata?.artistID;
+    // ONLY use serverMetadata for security (clientMetadata is not secure)
+    const artistId = user.serverMetadata?.artistID;
     return artistId ? parseInt(artistId.toString()) : null;
   } catch (error) {
     console.error("Error getting artist ID:", error);

@@ -103,7 +103,6 @@ export const artists = pgTable("artists", {
 	slug: text(),
 	isVisible: boolean("is_visible").default(true).notNull(),
 	featured: boolean().default(false).notNull(),
-	hasCompletedOnboarding: boolean().default(false).notNull(),
 }, (table) => [
 	unique("artists_email_key").on(table.email),
 ]);

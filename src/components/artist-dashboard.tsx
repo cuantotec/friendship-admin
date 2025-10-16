@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ArtworkModal from "./artwork-modal";
-import { createArtwork } from "@/lib/actions/artwork-actions";
+import ArtistProfileModal from "./artist-profile-modal";
+import ArtistSettingsModal from "./artist-settings-modal";
 import { updateArtworkOrder } from "@/lib/actions/update-artwork-order";
 import { toast } from "sonner";
 import { 
@@ -25,32 +27,7 @@ import {
   GripVertical,
   Save
 } from "lucide-react";
-
-type Artist = {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  artistID?: number;
-};
-
-type Artwork = {
-  id: number;
-  title: string;
-  description?: string;
-  imageUrl?: string;
-  price?: number;
-  isActive: boolean;
-  order: number;
-  artistId: number;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-interface ArtistDashboardProps {
-  artist: Artist | null;
-  artworks: Artwork[];
-}
+import type { Artwork, ArtworkWithDisplayOrder, ArtistDashboardProps } from "@/types";
 
 export default function ArtistDashboard({ artist, artworks }: ArtistDashboardProps) {
   const router = useRouter();
@@ -61,9 +38,13 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const [isDragMode, setIsDragMode] = useState(false);
-  const [draggedArtwork, setDraggedArtwork] = useState<Artwork | null>(null);
-  const [artworksOrder, setArtworksOrder] = useState<Artwork[]>([]);
+  const [draggedArtwork, setDraggedArtwork] = useState<ArtworkWithDisplayOrder | null>(null);
+  const [artworksOrder, setArtworksOrder] = useState<ArtworkWithDisplayOrder[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Profile and Settings modals
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // Initialize artworks order when artworks change
   React.useEffect(() => {
@@ -85,6 +66,7 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedArtwork(null);
+    setIsCreating(false);
   };
 
   const handleArtworkUpdated = (updatedArtwork: Artwork) => {
@@ -103,7 +85,7 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
     handleModalClose();
   };
 
-  const handleCreateArtwork = async () => {
+  const handleCreateArtwork = () => {
     if (!artist?.id) {
       toast.error("Artist ID not found", {
         description: "Unable to create artwork without artist information.",
@@ -112,58 +94,10 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
       return;
     }
 
+    // Open the modal in create mode
     setIsCreating(true);
-    
-    // Show loading toast
-    const loadingToast = toast.loading("Creating new artwork...", {
-      description: "Please wait while we create your artwork."
-    });
-
-    try {
-      const newArtworkData = {
-        title: "New Artwork",
-        year: new Date().getFullYear().toString(),
-        medium: "Oil on Canvas",
-        dimensions: "24 x 36 inches",
-        description: "A new artwork created by the artist.",
-        price: 0,
-        status: "Draft",
-        featured: false,
-        artistId: artist.id
-      };
-
-      const result = await createArtwork(newArtworkData);
-      
-      if (result.success) {
-        toast.dismiss(loadingToast);
-        toast.success("Artwork created successfully!", {
-          description: `"${result.data.title}" has been created.`,
-          icon: <CheckCircle className="h-4 w-4" />
-        });
-        
-        // Open the modal with the new artwork for immediate editing
-        setSelectedArtwork(result.data);
-        setIsModalOpen(true);
-        
-        // Also refresh the page data to show new artwork in the list
-        setIsRefreshing(true);
-        router.refresh();
-      } else {
-        toast.dismiss(loadingToast);
-        toast.error("Failed to create artwork", {
-          description: result.error,
-          icon: <XCircle className="h-4 w-4" />
-        });
-      }
-    } catch (error) {
-      toast.dismiss(loadingToast);
-      toast.error("Failed to create artwork", {
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
-        icon: <XCircle className="h-4 w-4" />
-      });
-    } finally {
-      setIsCreating(false);
-    }
+    setSelectedArtwork(null);
+    setIsModalOpen(true);
   };
 
   const handleReloadArtworks = async () => {
@@ -197,7 +131,7 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, artwork: Artwork) => {
+  const handleDragStart = (e: React.DragEvent, artwork: ArtworkWithDisplayOrder) => {
     if (!isDragMode) return;
     setDraggedArtwork(artwork);
     e.dataTransfer.effectAllowed = 'move';
@@ -219,7 +153,7 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
     target.classList.remove('ring-2', 'ring-purple-400', 'ring-opacity-50');
   };
 
-  const handleDrop = (e: React.DragEvent, targetArtwork: Artwork) => {
+  const handleDrop = (e: React.DragEvent, targetArtwork: ArtworkWithDisplayOrder) => {
     if (!isDragMode || !draggedArtwork) return;
     e.preventDefault();
 
@@ -375,11 +309,19 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
               )}
               <span className="font-medium">Add New Artwork</span>
             </Button>
-            <Button variant="outline" className="h-20 flex-col rounded-xl hover:shadow-lg transition-all duration-200 border-gray-200 hover:border-blue-300">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col rounded-xl hover:shadow-lg transition-all duration-200 border-gray-200 hover:border-blue-300"
+              onClick={() => setIsProfileModalOpen(true)}
+            >
               <User className="h-6 w-6 mb-2 text-blue-600" />
               <span className="font-medium">Edit Profile</span>
             </Button>
-            <Button variant="outline" className="h-20 flex-col rounded-xl hover:shadow-lg transition-all duration-200 border-gray-200 hover:border-gray-400">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col rounded-xl hover:shadow-lg transition-all duration-200 border-gray-200 hover:border-gray-400"
+              onClick={() => setIsSettingsModalOpen(true)}
+            >
               <Settings className="h-6 w-6 mb-2 text-gray-600" />
               <span className="font-medium">Settings</span>
             </Button>
@@ -396,11 +338,15 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
               <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
                 <div className="flex-shrink-0">
                   {artist.profileImage ? (
-                    <img
-                      src={artist.profileImage}
-                      alt={artist.name}
-                      className="h-24 w-24 rounded-full object-cover"
-                    />
+                    <div className="h-24 w-24 rounded-full overflow-hidden relative">
+                      <Image
+                        src={artist.profileImage}
+                        alt={artist.name}
+                        fill
+                        className="object-cover"
+                        sizes="96px"
+                      />
+                    </div>
                   ) : (
                     <div className="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center">
                       <User className="h-12 w-12 text-gray-400" />
@@ -438,8 +384,24 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
                 </p>
               </div>
               
-              {/* Controls */}
-              <div className="flex items-center gap-2">
+              {/* Enhanced Controls */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Add Artwork Button */}
+                <Button
+                  onClick={() => {
+                    setSelectedArtwork(null);
+                    setIsModalOpen(true);
+                  }}
+                  size="sm"
+                  className="bg-purple-600 hover:bg-purple-700 shadow-sm"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Artwork
+                </Button>
+
+                {/* Divider */}
+                <div className="h-6 w-px bg-gray-300" />
+
                 {/* Drag & Drop Toggle */}
                 <Button
                   variant={isDragMode ? "default" : "outline"}
@@ -503,13 +465,60 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
                   <span className="hidden sm:inline">Reload</span>
                 </Button>
                 
+                {/* Sort Options */}
+                <select 
+                  className="h-8 text-xs border border-gray-200 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const sorted = [...artworksOrder];
+                    if (value === 'title') {
+                      sorted.sort((a, b) => a.title.localeCompare(b.title));
+                    } else if (value === 'year') {
+                      sorted.sort((a, b) => b.year.localeCompare(a.year));
+                    } else if (value === 'price-high') {
+                      sorted.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+                    } else if (value === 'price-low') {
+                      sorted.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+                    } else if (value === 'order') {
+                      sorted.sort((a, b) => (a.artistLocationId || 0) - (b.artistLocationId || 0));
+                    }
+                    setArtworksOrder(sorted);
+                  }}
+                >
+                  <option value="order">Display Order</option>
+                  <option value="title">A-Z</option>
+                  <option value="year">Newest</option>
+                  <option value="price-high">$$ High</option>
+                  <option value="price-low">$$ Low</option>
+                </select>
+
+                {/* Status Filter */}
+                <select 
+                  className="h-8 text-xs border border-gray-200 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === 'all') {
+                      setArtworksOrder(artworks);
+                    } else {
+                      setArtworksOrder(artworks.filter(a => a.status === value));
+                    }
+                  }}
+                >
+                  <option value="all">All</option>
+                  <option value="Available">Available</option>
+                  <option value="Sold">Sold</option>
+                  <option value="Reserved">Reserved</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Not for Sale">Not for Sale</option>
+                </select>
+
                 {/* View Mode Toggle */}
-                <div className="flex border rounded-lg overflow-hidden">
+                <div className="flex border rounded-lg overflow-hidden shadow-sm">
                   <Button
                     variant={viewMode === 'grid' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('grid')}
-                    className="rounded-none"
+                    className="rounded-none h-8 w-8 p-0"
                   >
                     <Grid className="w-4 h-4" />
                   </Button>
@@ -517,10 +526,17 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
                     variant={viewMode === 'list' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('list')}
-                    className="rounded-none"
+                    className="rounded-none h-8 w-8 p-0"
                   >
                     <List className="w-4 h-4" />
                   </Button>
+                </div>
+
+                {/* Artwork Count */}
+                <div className="px-3 py-1 bg-purple-50 border border-purple-200 rounded-lg">
+                  <span className="text-xs font-semibold text-purple-700">
+                    {artworksOrder.length} artworks
+                  </span>
                 </div>
               </div>
             </div>
@@ -605,12 +621,14 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
                         </div>
                       )}
 
-                      <div className={`${viewMode === 'list' ? 'w-24 h-24 flex-shrink-0' : 'aspect-square'} bg-gray-100 rounded-lg overflow-hidden`}>
+                      <div className={`${viewMode === 'list' ? 'w-24 h-24 flex-shrink-0' : 'aspect-square'} bg-gray-100 rounded-lg overflow-hidden relative`}>
                         {artwork.watermarkedImage ? (
-                          <img
+                          <Image
                             src={artwork.watermarkedImage}
                             alt={artwork.title}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                            sizes={viewMode === 'list' ? '96px' : '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'}
                           />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center">
@@ -645,6 +663,30 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
         onClose={handleModalClose}
         onArtworkUpdated={handleArtworkUpdated}
         onArtworkDeleted={handleArtworkDeleted}
+        artistId={artist?.id || 0}
+        mode={isCreating ? 'create' : 'edit'}
+      />
+
+      {/* Artist Profile Modal */}
+      <ArtistProfileModal
+        artist={artist}
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onProfileUpdated={() => {
+          setIsProfileModalOpen(false);
+          router.refresh();
+        }}
+      />
+
+      {/* Artist Settings Modal */}
+      <ArtistSettingsModal
+        artist={artist}
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        onSettingsUpdated={() => {
+          setIsSettingsModalOpen(false);
+          router.refresh();
+        }}
       />
     </div>
   );

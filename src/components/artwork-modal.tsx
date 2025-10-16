@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updateArtwork, deleteArtwork } from "@/lib/actions/artwork-actions";
+import { updateArtwork, deleteArtwork, createArtwork } from "@/lib/actions/artwork-actions";
 import { toast } from "sonner";
 import { 
   Edit, 
@@ -19,34 +20,21 @@ import {
   EyeOff,
   Loader2,
   CheckCircle,
-  XCircle
+  XCircle,
+  Upload,
+  Image as ImageIcon,
+  X
 } from "lucide-react";
-
-type Artwork = {
-  id?: number;
-  title?: string;
-  slug?: string;
-  artistId?: number;
-  year?: string;
-  medium?: string;
-  dimensions?: string;
-  description?: string;
-  price?: number;
-  status?: string;
-  featured?: boolean;
-  watermarkedImage?: string;
-  originalImage?: string;
-  globalLocationId?: number;
-  artistLocationId?: number;
-  createdAt?: string;
-};
+import type { Artwork, ArtworkWithDisplayOrder } from "@/types";
 
 interface ArtworkModalProps {
-  artwork: Artwork | null;
+  artwork: Artwork | ArtworkWithDisplayOrder | null;
   isOpen: boolean;
   onClose: () => void;
   onArtworkUpdated: (artwork: Artwork) => void;
   onArtworkDeleted: (artworkId: number) => void;
+  artistId: number; // Required for creating new artworks
+  mode?: 'edit' | 'create'; // Determines if modal is for editing or creating
 }
 
 export default function ArtworkModal({ 
@@ -54,20 +42,46 @@ export default function ArtworkModal({
   isOpen, 
   onClose, 
   onArtworkUpdated,
-  onArtworkDeleted
+  onArtworkDeleted,
+  artistId,
+  mode = artwork ? 'edit' : 'create'
 }: ArtworkModalProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedArtwork, setEditedArtwork] = useState<Artwork | null>(null);
+  const [isEditing, setIsEditing] = useState(mode === 'create');
+  const [editedArtwork, setEditedArtwork] = useState<Partial<Artwork & ArtworkWithDisplayOrder> | null>(null);
   const [showOriginalImage, setShowOriginalImage] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize edited artwork when modal opens
   useEffect(() => {
-    if (artwork && isOpen) {
-      setEditedArtwork({ ...artwork });
-      setIsEditing(false);
+    if (isOpen) {
+      if (mode === 'create') {
+        // Initialize with empty artwork for creation
+        setEditedArtwork({
+          title: '',
+          year: '',
+          medium: '',
+          dimensions: '',
+          description: '',
+          price: '0',
+          status: 'Draft',
+          featured: 0,
+          artistId: artistId
+        });
+        setIsEditing(true);
+        setImageFile(null);
+        setImagePreview(null);
+      } else if (artwork) {
+        setEditedArtwork({ ...artwork });
+        setIsEditing(false);
+        setImageFile(null);
+        setImagePreview(null);
+      }
     }
-  }, [artwork, isOpen]);
+  }, [artwork, isOpen, mode, artistId]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -75,51 +89,188 @@ export default function ArtworkModal({
   };
 
   const handleCancel = () => {
-    setIsEditing(false);
-    setEditedArtwork({ ...artwork });
+    if (mode === 'create') {
+      onClose();
+    } else {
+      setIsEditing(false);
+      setEditedArtwork(artwork ? { ...artwork } : null);
+      setImageFile(null);
+      setImagePreview(null);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Invalid file type', {
+        description: 'Please select an image file (JPEG, PNG, GIF, or WebP)',
+        icon: <XCircle className="h-4 w-4" />
+      });
+      return;
+    }
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large', {
+        description: 'Please select an image smaller than 10MB',
+        icon: <XCircle className="h-4 w-4" />
+      });
+      return;
+    }
+
+    setImageFile(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadImage = async (): Promise<{ originalUrl: string; watermarkedUrl: string } | null> => {
+    if (!imageFile) return null;
+
+    setIsUploading(true);
+    const uploadToast = toast.loading('Uploading image...', {
+      description: 'Please wait while we upload and watermark your image.'
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', imageFile);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
+      toast.dismiss(uploadToast);
+      toast.success('Image uploaded successfully!', {
+        description: 'Watermark has been applied.',
+        icon: <CheckCircle className="h-4 w-4" />
+      });
+
+      return {
+        originalUrl: data.originalUrl,
+        watermarkedUrl: data.watermarkedUrl
+      };
+    } catch (error) {
+      toast.dismiss(uploadToast);
+      toast.error('Upload failed', {
+        description: error instanceof Error ? error.message : 'Failed to upload image',
+        icon: <XCircle className="h-4 w-4" />
+      });
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleSave = async () => {
-    if (!editedArtwork || !artwork || !artwork.id) return;
+    if (!editedArtwork) return;
+
+    // Validate required fields
+    if (!editedArtwork.title?.trim()) {
+      toast.error('Title is required', {
+        description: 'Please enter a title for the artwork',
+        icon: <XCircle className="h-4 w-4" />
+      });
+      return;
+    }
 
     setIsLoading(true);
     
-    // Show loading toast
-    const loadingToast = toast.loading("Saving artwork changes...", {
-      description: "Please wait while we update your artwork."
-    });
+    const loadingToast = toast.loading(
+      mode === 'create' ? 'Creating artwork...' : 'Saving artwork changes...',
+      { description: 'Please wait while we update your artwork.' }
+    );
     
     try {
-      const result = await updateArtwork(artwork.id, editedArtwork);
+      let originalImage = editedArtwork.originalImage;
+      let watermarkedImage = editedArtwork.watermarkedImage;
+
+      // Upload image if a new one was selected
+      if (imageFile) {
+        const uploadResult = await uploadImage();
+        if (uploadResult) {
+          originalImage = uploadResult.originalUrl;
+          watermarkedImage = uploadResult.watermarkedUrl;
+        } else {
+          toast.dismiss(loadingToast);
+          toast.error('Image upload failed', {
+            description: 'Please try again',
+            icon: <XCircle className="h-4 w-4" />
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      const artworkData = {
+        ...editedArtwork,
+        originalImage,
+        watermarkedImage,
+        artistId: mode === 'create' ? artistId : editedArtwork.artistId
+      };
+
+      let result;
+      if (mode === 'create') {
+        result = await createArtwork(artworkData);
+      } else if (artwork?.id) {
+        result = await updateArtwork(artwork.id, artworkData);
+      } else {
+        throw new Error('Invalid artwork ID');
+      }
       
       if (result.success) {
         toast.dismiss(loadingToast);
-        toast.success("Artwork updated successfully!", {
-          description: `"${editedArtwork.title}" has been saved.`,
-          icon: <CheckCircle className="h-4 w-4" />
-        });
+        toast.success(
+          mode === 'create' ? 'Artwork created successfully!' : 'Artwork updated successfully!',
+          {
+            description: `"${editedArtwork.title}" has been saved.`,
+            icon: <CheckCircle className="h-4 w-4" />
+          }
+        );
         onArtworkUpdated(result.data);
         setIsEditing(false);
+        if (mode === 'create') {
+          onClose();
+        }
       } else {
         toast.dismiss(loadingToast);
-        toast.error("Failed to update artwork", {
-          description: result.error,
-          icon: <XCircle className="h-4 w-4" />
-        });
+        toast.error(
+          mode === 'create' ? 'Failed to create artwork' : 'Failed to update artwork',
+          {
+            description: result.error,
+            icon: <XCircle className="h-4 w-4" />
+          }
+        );
       }
     } catch (error) {
       toast.dismiss(loadingToast);
-      toast.error("Failed to update artwork", {
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
-        icon: <XCircle className="h-4 w-4" />
-      });
+      toast.error(
+        mode === 'create' ? 'Failed to create artwork' : 'Failed to update artwork',
+        {
+          description: error instanceof Error ? error.message : "An unexpected error occurred",
+          icon: <XCircle className="h-4 w-4" />
+        }
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!artwork || !artwork.id) return;
+    if (!artwork || !artwork.id || mode === 'create') return;
 
     if (!window.confirm("Are you sure you want to delete this artwork? This action cannot be undone.")) {
       return;
@@ -127,7 +278,6 @@ export default function ArtworkModal({
 
     setIsLoading(true);
     
-    // Show loading toast
     const loadingToast = toast.loading("Deleting artwork...", {
       description: "Please wait while we remove your artwork."
     });
@@ -170,9 +320,8 @@ export default function ArtworkModal({
     }
   };
 
-  if (!artwork) return null;
-
   const currentArtwork = isEditing ? editedArtwork : artwork;
+  const displayImage = imagePreview || currentArtwork?.watermarkedImage;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -180,10 +329,10 @@ export default function ArtworkModal({
         <DialogHeader className="bg-white border-b border-gray-200 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900">
-              {isEditing ? "Edit Artwork" : "Artwork Details"}
+              {mode === 'create' ? 'Create New Artwork' : isEditing ? 'Edit Artwork' : 'Artwork Details'}
             </DialogTitle>
             <div className="flex items-center gap-2">
-              {!isEditing && (
+              {!isEditing && mode === 'edit' && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -211,12 +360,14 @@ export default function ArtworkModal({
             {/* Image Section */}
           <div className="space-y-4">
             <div className="relative">
-              <div className="aspect-square sm:aspect-[4/3] lg:aspect-square bg-gray-100 rounded-lg overflow-hidden shadow-sm">
-                {currentArtwork?.watermarkedImage ? (
-                  <img
-                    src={currentArtwork.watermarkedImage}
-                    alt={currentArtwork.title}
-                    className="h-full w-full object-cover"
+              <div className="aspect-square sm:aspect-[4/3] lg:aspect-square bg-gray-100 rounded-lg overflow-hidden shadow-sm relative">
+                {displayImage ? (
+                  <Image
+                    src={displayImage}
+                    alt={currentArtwork?.title || 'Artwork'}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />
                 ) : (
                   <div className="h-full w-full flex items-center justify-center">
@@ -225,18 +376,20 @@ export default function ArtworkModal({
                 )}
               </div>
               
-              {/* Location ID Badges */}
-              <div className="absolute top-2 left-2 sm:top-4 sm:left-4 flex flex-col sm:flex-row gap-1 sm:gap-2">
-                <Badge className="bg-blue-600 text-white font-bold text-xs px-2 py-1">
-                  G#{currentArtwork?.globalLocationId}
-                </Badge>
-                <Badge className="bg-green-600 text-white font-bold text-xs px-2 py-1">
-                  A#{currentArtwork?.artistLocationId}
-                </Badge>
-              </div>
+              {/* Location ID Badges - only show for existing artworks */}
+              {mode === 'edit' && currentArtwork && 'globalLocationId' in currentArtwork && (
+                <div className="absolute top-2 left-2 sm:top-4 sm:left-4 flex flex-col sm:flex-row gap-1 sm:gap-2">
+                  <Badge className="bg-blue-600 text-white font-bold text-xs px-2 py-1">
+                    G#{(currentArtwork as ArtworkWithDisplayOrder).globalLocationId}
+                  </Badge>
+                  <Badge className="bg-green-600 text-white font-bold text-xs px-2 py-1">
+                    A#{(currentArtwork as ArtworkWithDisplayOrder).artistLocationId}
+                  </Badge>
+                </div>
+              )}
 
-              {/* Image Toggle */}
-              {currentArtwork?.originalImage && (
+              {/* Image Toggle - only for existing artwork with original image */}
+              {mode === 'edit' && currentArtwork?.originalImage && !imagePreview && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -246,15 +399,82 @@ export default function ArtworkModal({
                   {showOriginalImage ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               )}
+
+              {/* Image preview badge */}
+              {imagePreview && (
+                <Badge className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-green-600 text-white">
+                  New Image
+                </Badge>
+              )}
             </div>
 
+            {/* Image Upload Section - only in edit mode */}
+            {isEditing && (
+              <div className="space-y-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : imageFile ? (
+                    <>
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      {imageFile.name}
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      {mode === 'create' ? 'Upload Artwork Image' : 'Change Image'}
+                    </>
+                  )}
+                </Button>
+                {imageFile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => {
+                      setImageFile(null);
+                      setImagePreview(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Remove Selected Image
+                  </Button>
+                )}
+                <p className="text-xs text-gray-500 text-center">
+                  Image will be watermarked automatically upon upload
+                </p>
+              </div>
+            )}
+
             {/* Original Image Preview */}
-            {showOriginalImage && currentArtwork?.originalImage && (
-              <div className="aspect-square sm:aspect-[4/3] lg:aspect-square bg-gray-100 rounded-lg overflow-hidden shadow-sm">
-                <img
+            {showOriginalImage && currentArtwork?.originalImage && !imagePreview && (
+              <div className="aspect-square sm:aspect-[4/3] lg:aspect-square bg-gray-100 rounded-lg overflow-hidden shadow-sm relative">
+                <Image
                   src={currentArtwork.originalImage}
                   alt={`${currentArtwork.title} (Original)`}
-                  className="h-full w-full object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 />
               </div>
             )}
@@ -268,13 +488,14 @@ export default function ArtworkModal({
               
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <Label htmlFor="title">Title</Label>
+                  <Label htmlFor="title">Title <span className="text-red-500">*</span></Label>
                   {isEditing ? (
                     <Input
                       id="title"
                       value={currentArtwork?.title || ""}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("title", e.target.value)}
                       className="mt-1"
+                      placeholder="Enter artwork title"
                     />
                   ) : (
                     <p className="mt-1 text-gray-900 font-medium">{currentArtwork?.title}</p>
@@ -291,6 +512,7 @@ export default function ArtworkModal({
                         value={currentArtwork?.year || ""}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("year", e.target.value)}
                         className="mt-1"
+                        placeholder="e.g., 2024"
                       />
                     ) : (
                       <p className="mt-1 text-gray-900 font-medium">{currentArtwork?.year}</p>
@@ -305,6 +527,7 @@ export default function ArtworkModal({
                         value={currentArtwork?.medium || ""}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("medium", e.target.value)}
                         className="mt-1"
+                        placeholder="e.g., Oil on canvas"
                       />
                     ) : (
                       <p className="mt-1 text-gray-900 font-medium">{currentArtwork?.medium}</p>
@@ -353,19 +576,28 @@ export default function ArtworkModal({
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="price" className="text-sm font-medium text-gray-700">Price ($)</Label>
+                  <Label htmlFor="price" className="text-sm font-medium text-gray-700">
+                    Price ($) <span className="text-xs text-gray-500">(max: $100,000)</span>
+                  </Label>
                   {isEditing ? (
                     <Input
                       id="price"
                       type="number"
                       step="0.01"
+                      min="0"
+                      max="100000"
                       value={currentArtwork?.price || ""}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("price", parseFloat(e.target.value) || 0)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        const limitedValue = Math.min(value, 100000);
+                        handleInputChange("price", limitedValue.toString());
+                      }}
                       className="mt-1"
+                      placeholder="0.00"
                     />
                   ) : (
                     <p className="mt-1 text-gray-900 font-medium text-lg">
-                      ${currentArtwork?.price?.toLocaleString() || "0"}
+                      ${parseFloat(currentArtwork?.price || "0").toLocaleString()}
                     </p>
                   )}
                 </div>
@@ -429,29 +661,31 @@ export default function ArtworkModal({
               </div>
             </div>
 
-            {/* Metadata */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Metadata</h3>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-600">
-                <div>
-                  <span className="font-medium">Artist ID:</span>
-                  <p>{currentArtwork?.artistId}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Artwork ID:</span>
-                  <p>{currentArtwork?.id}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Created:</span>
-                  <p>{currentArtwork?.createdAt ? new Date(currentArtwork.createdAt).toLocaleDateString() : "N/A"}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Slug:</span>
-                  <p className="font-mono text-xs">{currentArtwork?.slug || "N/A"}</p>
+            {/* Metadata - only show for existing artworks */}
+            {mode === 'edit' && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Metadata</h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-600">
+                  <div>
+                    <span className="font-medium">Artist ID:</span>
+                    <p>{currentArtwork?.artistId}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Artwork ID:</span>
+                    <p>{currentArtwork?.id}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Created:</span>
+                    <p>{currentArtwork?.createdAt ? new Date(currentArtwork.createdAt).toLocaleDateString() : "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Slug:</span>
+                    <p className="font-mono text-xs">{currentArtwork?.slug || "N/A"}</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Action Buttons */}
             {isEditing && (
@@ -459,7 +693,7 @@ export default function ArtworkModal({
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   <Button
                     onClick={handleSave}
-                    disabled={isLoading}
+                    disabled={isLoading || isUploading}
                     className="flex items-center justify-center gap-2 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     {isLoading ? (
@@ -467,29 +701,31 @@ export default function ArtworkModal({
                     ) : (
                       <Save className="h-4 w-4" />
                     )}
-                    Save Changes
+                    {mode === 'create' ? 'Create Artwork' : 'Save Changes'}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={handleCancel}
-                    disabled={isLoading}
+                    disabled={isLoading || isUploading}
                     className="w-full sm:w-auto border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     Cancel
                   </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={handleDelete}
-                    disabled={isLoading}
-                    className="flex items-center justify-center gap-2 w-full sm:w-auto sm:ml-auto bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                  >
-                    {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    Delete Artwork
-                  </Button>
+                  {mode === 'edit' && (
+                    <Button
+                      variant="destructive"
+                      onClick={handleDelete}
+                      disabled={isLoading || isUploading}
+                      className="flex items-center justify-center gap-2 w-full sm:w-auto sm:ml-auto bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    >
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      Delete Artwork
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
