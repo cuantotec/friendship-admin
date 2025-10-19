@@ -39,6 +39,7 @@ export const artistInvitations = pgTable("artist_invitations", {
   message: text("message"),
   code: text("code").notNull().unique(),
   invitedBy: text("invited_by").notNull(),
+  stackUserId: text("stack_user_id"), // Stack Auth user ID
   createdAt: timestamp("created_at").defaultNow().notNull(),
   usedAt: timestamp("used_at"),
   expiresAt: timestamp("expires_at").default(sql`NOW() + INTERVAL '7 days'`),

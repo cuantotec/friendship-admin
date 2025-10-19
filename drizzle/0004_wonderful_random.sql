@@ -1,0 +1,1 @@
+ALTER TABLE "artist_invitations" ADD COLUMN "stack_user_id" text;

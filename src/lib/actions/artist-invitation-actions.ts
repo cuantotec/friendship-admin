@@ -81,6 +81,36 @@ export async function inviteArtist(formData: FormData): Promise<ApiResponse<{ in
     const invitationCode = generateConfirmationNumber('INVITE-');
     const adminName = user.displayName || user.primaryEmail || "Gallery Admin";
 
+    // Create Stack Auth user for the artist
+    let stackUserId: string | null = null;
+    try {
+      // Check if user already exists in Stack Auth
+      const existingUsers = await stackServerApp.listUsers();
+      const existingUser = existingUsers.find(u => u.primaryEmail === validatedData.email);
+      
+      if (existingUser) {
+        stackUserId = existingUser.id;
+        console.log("User already exists in Stack Auth:", existingUser.id);
+      } else {
+        // Create new user in Stack Auth
+        const newUser = await stackServerApp.createUser({
+          primaryEmail: validatedData.email,
+          displayName: validatedData.name,
+          serverMetadata: {
+            role: "artist",
+            invitationCode: invitationCode,
+            invitedBy: adminName
+          }
+        });
+        stackUserId = newUser.id;
+        console.log("Created new Stack Auth user:", newUser.id);
+      }
+    } catch (error) {
+      console.error("Error creating Stack Auth user:", error);
+      // Continue with invitation creation even if Stack Auth user creation fails
+      // The user can still complete setup manually
+    }
+
     // Store invitation in database
     await db.insert(artistInvitations).values({
       email: validatedData.email,
@@ -89,10 +119,28 @@ export async function inviteArtist(formData: FormData): Promise<ApiResponse<{ in
       message: validatedData.preApproved ? "Pre-approved artist" : null,
       code: invitationCode,
       invitedBy: adminName,
+      stackUserId: stackUserId, // Store the Stack Auth user ID
     });
 
-    // Send invitation email
-    const setupUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/handler/setup?code=${invitationCode}`;
+    // Send magic link for auto-login
+    let setupUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/handler/setup?code=${invitationCode}`;
+    
+    if (stackUserId) {
+      try {
+        // Generate a magic link for the user
+        const magicLinkResult = await stackServerApp.sendMagicLinkEmail(validatedData.email);
+        if (magicLinkResult.status === "ok") {
+          // Construct the magic link URL with the nonce
+          setupUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/handler/setup?code=${invitationCode}&magic=${magicLinkResult.data.nonce}`;
+          console.log("Magic link generated:", setupUrl);
+        } else {
+          console.error("Failed to generate magic link:", magicLinkResult);
+        }
+      } catch (error) {
+        console.error("Error generating magic link:", error);
+        // Fallback to regular invitation email
+      }
+    }
     
     const emailResult = await sendArtistInvitation({
       artistName: validatedData.name,
@@ -219,6 +267,7 @@ export async function createArtistFromInvitation(data: {
   bio: string;
   specialty: string;
   exhibitions?: string;
+  profileImage?: string | null;
 }): Promise<ApiResponse<{ artistId: number; userId: string }>> {
   try {
     console.log("=== CREATE ARTIST FROM INVITATION ===");
@@ -300,7 +349,7 @@ export async function createArtistFromInvitation(data: {
       bio: data.bio,
       specialty: data.specialty,
       exhibitions: exhibitionsArray,
-      profileImage: null,
+      profileImage: data.profileImage || null,
       isVisible: true,
       isHidden: false,
       featured: false,

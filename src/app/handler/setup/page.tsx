@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,15 +14,21 @@ import {
   XCircle, 
   User, 
   Palette,
-  ArrowRight
+  ArrowRight,
+  Upload,
+  Image as ImageIcon,
+  X
 } from "lucide-react";
 import { createArtistFromInvitation } from "@/lib/actions/artist-invitation-actions";
+import { stackClientApp } from "@/stack/client";
 
 export default function ArtistSetupPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<{ primaryEmail: string | null; displayName?: string | null } | null>(null);
   const [invitation, setInvitation] = useState<{
     name: string;
     email: string;
@@ -32,8 +38,64 @@ export default function ArtistSetupPage() {
   const [formData, setFormData] = useState({
     bio: "",
     specialty: "",
-    exhibitions: ""
+    exhibitions: "",
+    profileImage: null as File | null
   });
+  const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+
+  const checkAuthAndValidate = useCallback(async (code: string) => {
+    try {
+      // Check if user is already authenticated (magic link should have logged them in)
+      const user = await stackClientApp.getUser();
+      
+      if (user) {
+        // User is authenticated, validate the invitation
+        setIsAuthenticated(true);
+        setUser(user);
+        await validateInvitation(code);
+      } else {
+        // User is not authenticated, validate invitation first
+        const invitationResponse = await fetch(`/api/validate-invitation?code=${code}`);
+        const invitationResult = await invitationResponse.json();
+        
+        if (!invitationResult.success) {
+          setInvitation({
+            name: "",
+            email: "",
+            code: code,
+            isValid: false
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        // Store invitation data and redirect to login
+        setInvitation({
+          name: invitationResult.data.name,
+          email: invitationResult.data.email,
+          code: code,
+          isValid: true
+        });
+        
+        setIsAuthenticated(false);
+        setUser(null);
+        // Store the code in sessionStorage for after login
+        sessionStorage.setItem('invitationCode', code);
+        // Redirect to login with return URL
+        const loginUrl = `/login?redirect=${encodeURIComponent(window.location.href)}`;
+        router.push(loginUrl);
+      }
+    } catch (error) {
+      console.error("Error checking authentication:", error);
+      setIsAuthenticated(false);
+      setUser(null);
+      toast.error("Authentication error", {
+        description: "Please try logging in again"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [router]);
 
   useEffect(() => {
     const code = searchParams.get("code");
@@ -45,9 +107,9 @@ export default function ArtistSetupPage() {
       return;
     }
 
-    // Validate invitation code
-    validateInvitation(code);
-  }, [searchParams, router]);
+    // Check authentication and validate invitation
+    checkAuthAndValidate(code);
+  }, [searchParams, router, checkAuthAndValidate]);
 
   const validateInvitation = async (code: string) => {
     try {
@@ -97,6 +159,47 @@ export default function ArtistSetupPage() {
     }));
   };
 
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error("Invalid file type", {
+          description: "Please select an image file"
+        });
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File too large", {
+          description: "Please select an image smaller than 5MB"
+        });
+        return;
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        profileImage: file
+      }));
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setProfileImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setFormData(prev => ({
+      ...prev,
+      profileImage: null
+    }));
+    setProfileImagePreview(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -121,12 +224,35 @@ export default function ArtistSetupPage() {
     });
 
     try {
+      let profileImageUrl = null;
+      
+      // Upload profile image if provided
+      if (formData.profileImage) {
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', formData.profileImage);
+        
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataUpload
+        });
+        
+        if (uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json();
+          profileImageUrl = uploadResult.url;
+        } else {
+          toast.warning("Image upload failed", {
+            description: "Account will be created without profile image"
+          });
+        }
+      }
+
       // Create artist account using Stack Auth
       const result = await createArtistFromInvitation({
         invitationCode: invitation.code,
         bio: formData.bio,
         specialty: formData.specialty,
-        exhibitions: formData.exhibitions
+        exhibitions: formData.exhibitions,
+        profileImage: profileImageUrl
       });
 
       if (result.success) {
@@ -164,8 +290,15 @@ export default function ArtistSetupPage() {
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Validating Invitation</h2>
-            <p className="text-gray-600">Please wait while we verify your invitation...</p>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              {!isAuthenticated ? "Checking Authentication" : "Validating Invitation"}
+            </h2>
+            <p className="text-gray-600">
+              {!isAuthenticated 
+                ? "Please wait while we check your login status..." 
+                : "Please wait while we verify your invitation..."
+              }
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -269,6 +402,65 @@ export default function ArtistSetupPage() {
               />
               <p className="text-xs text-gray-500 mt-1">
                 Enter one per line (press Enter for new line)
+              </p>
+            </div>
+
+            {/* Profile Image Upload */}
+            <div>
+              <Label className="text-sm font-medium text-gray-700">
+                Profile Image
+              </Label>
+              <div className="mt-1">
+                {profileImagePreview ? (
+                  <div className="relative">
+                    <img
+                      src={profileImagePreview}
+                      alt="Profile preview"
+                      className="w-32 h-32 object-cover rounded-lg border border-gray-200"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={removeImage}
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 bg-red-500 hover:bg-red-600 text-white border-red-500"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                    <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">
+                        Upload a profile image (optional)
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        JPG, PNG up to 5MB
+                      </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        id="profile-image"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('profile-image')?.click()}
+                        className="flex items-center gap-2"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Choose Image
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                This will be displayed on your artist profile page
               </p>
             </div>
 

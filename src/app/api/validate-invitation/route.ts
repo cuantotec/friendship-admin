@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
         code: artistInvitations.code,
         usedAt: artistInvitations.usedAt,
         expiresAt: artistInvitations.expiresAt,
-        createdAt: artistInvitations.createdAt
+        createdAt: artistInvitations.createdAt,
+        stackUserId: artistInvitations.stackUserId
       })
       .from(artistInvitations)
       .where(eq(artistInvitations.code, code))
@@ -63,7 +64,8 @@ export async function GET(request: NextRequest) {
         name: inv.name,
         email: inv.email,
         code: inv.code,
-        createdAt: inv.createdAt.toISOString()
+        createdAt: inv.createdAt.toISOString(),
+        stackUserId: inv.stackUserId
       }
     });
 
