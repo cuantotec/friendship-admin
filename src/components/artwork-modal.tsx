@@ -23,7 +23,8 @@ import {
   XCircle,
   Upload,
   Image as ImageIcon,
-  X
+  X,
+  Star
 } from "lucide-react";
 import type { Artwork, ArtworkWithDisplayOrder } from "@/types";
 
@@ -35,6 +36,7 @@ interface ArtworkModalProps {
   onArtworkDeleted: (artworkId: number) => void;
   artistId: number; // Required for creating new artworks
   mode?: 'edit' | 'create'; // Determines if modal is for editing or creating
+  isAdmin?: boolean; // Determines if user is admin (can edit featured status)
 }
 
 export default function ArtworkModal({ 
@@ -44,7 +46,8 @@ export default function ArtworkModal({
   onArtworkUpdated,
   onArtworkDeleted,
   artistId,
-  mode = artwork ? 'edit' : 'create'
+  mode = artwork ? 'edit' : 'create',
+  isAdmin = false
 }: ArtworkModalProps) {
   const [isEditing, setIsEditing] = useState(mode === 'create');
   const [editedArtwork, setEditedArtwork] = useState<Partial<Artwork & ArtworkWithDisplayOrder> | null>(null);
@@ -703,29 +706,56 @@ export default function ArtworkModal({
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="featured">Featured</Label>
-                {isEditing ? (
-                  <Select
-                    value={currentArtwork?.featured ? "true" : "false"}
-                    onValueChange={(value) => handleInputChange("featured", value === "true")}
-                  >
-                    <SelectTrigger className="mt-1 bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      <SelectItem value="true">Yes</SelectItem>
-                      <SelectItem value="false">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="mt-1">
-                    <Badge variant={currentArtwork?.featured ? "default" : "outline"}>
-                      {currentArtwork?.featured ? "Featured" : "Not Featured"}
-                    </Badge>
+              {/* Featured Toggle - Admin Only */}
+              {isAdmin && (
+                <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Star className="h-5 w-5 text-yellow-600" />
+                    <Label htmlFor="featured" className="text-sm font-semibold text-yellow-800">
+                      Featured Artwork
+                    </Label>
                   </div>
-                )}
-              </div>
+                  <p className="text-xs text-yellow-700 mb-3">
+                    Featured artworks appear prominently on the homepage and gallery
+                  </p>
+                  {isEditing ? (
+                    <Select
+                      value={currentArtwork?.featured ? "true" : "false"}
+                      onValueChange={(value) => handleInputChange("featured", value === "true")}
+                    >
+                      <SelectTrigger className="bg-white border-yellow-300 focus:border-yellow-500 focus:ring-yellow-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="true" className="flex items-center gap-2">
+                          <Star className="h-4 w-4 text-yellow-500" />
+                          Yes - Make Featured
+                        </SelectItem>
+                        <SelectItem value="false" className="flex items-center gap-2">
+                          <X className="h-4 w-4 text-gray-500" />
+                          No - Remove from Featured
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant={currentArtwork?.featured ? "default" : "outline"}
+                        className={`${
+                          currentArtwork?.featured 
+                            ? "bg-yellow-100 text-yellow-800 border-yellow-300" 
+                            : "bg-gray-100 text-gray-600 border-gray-300"
+                        }`}
+                      >
+                        <Star className={`h-3 w-3 mr-1 ${
+                          currentArtwork?.featured ? "text-yellow-600" : "text-gray-500"
+                        }`} />
+                        {currentArtwork?.featured ? "Featured" : "Not Featured"}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Metadata - only show for existing artworks */}

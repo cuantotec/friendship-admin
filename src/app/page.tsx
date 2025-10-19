@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { signOut } from "@/lib/actions/signout";
-import { isUserAdmin } from "@/lib/stack-auth-helpers";
 import { getArtistById } from "@/lib/actions/get-artist";
 import { getAdminStats, getAllArtworks } from "@/lib/actions/admin-actions";
 import ArtistDashboard from "@/components/artist-dashboard";
@@ -30,8 +29,11 @@ export default async function Dashboard() {
     redirect("/login");
   }
 
-  // Get user role
-  const isAdmin = await isUserAdmin();
+  // Extract user data once to avoid multiple getUser() calls
+  const role = user.serverMetadata?.role || 'artist';
+  const isAdmin = role === 'admin' || role === 'super_admin';
+  const artistIdStr = user.serverMetadata?.artistID;
+  const artistId = artistIdStr ? parseInt(artistIdStr.toString()) : null;
   
   // Get admin or artist data based on role
   let adminStats: AdminStats | null = null;
@@ -39,16 +41,16 @@ export default async function Dashboard() {
   let artistData: { artist: import("@/types").Artist; artworks: import("@/types").ArtworkWithDisplayOrder[] } | null = null;
   
   if (isAdmin) {
-    // Fetch admin data
+    // Fetch admin data with user data to avoid redundant getUser() calls
     try {
-      adminStats = await getAdminStats();
-      adminArtworks = await getAllArtworks();
+      adminStats = await getAdminStats(user);
+      adminArtworks = await getAllArtworks(user);
     } catch (error) {
       console.error("Failed to fetch admin data:", error);
     }
   } else {
-    // Get artist data using server action
-    const artistResult = await getArtistById();
+    // Get artist data using server action with explicit artistId and user data to avoid another getUser() call
+    const artistResult = await getArtistById(artistId || undefined, user);
     
     if (!artistResult.success) {
       console.error("Failed to fetch artist data:", artistResult.error);

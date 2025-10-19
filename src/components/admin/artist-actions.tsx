@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Eye, EyeOff, Trash2, MoreVertical, KeyRound, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Trash2, MoreVertical, KeyRound, ShieldAlert, ShieldCheck, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import {
   toggleArtistVisibility,
@@ -17,7 +17,8 @@ import {
   updateUserStatus,
 } from "@/lib/actions/admin-actions";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useTransition, useState } from "react";
+import InviteExistingArtistModal from "./invite-existing-artist-modal";
 
 interface ArtistActionsProps {
   artistId: number;
@@ -27,6 +28,7 @@ interface ArtistActionsProps {
   hasUser: boolean;
   userId: string | null;
   userEmail: string | null;
+  artistEmail?: string | null;
 }
 
 export default function ArtistActions({
@@ -37,9 +39,11 @@ export default function ArtistActions({
   hasUser,
   userId,
   userEmail,
+  artistEmail,
 }: ArtistActionsProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   const handleToggleVisibility = () => {
     startTransition(async () => {
@@ -118,64 +122,90 @@ export default function ArtistActions({
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleToggleVisibility}
-        disabled={isPending}
-        title={isVisible ? "Hide artist" : "Show artist"}
-      >
-        {isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-      </Button>
-      
-      {hasUser && userId && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={isPending}
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleResetPassword}>
-              <KeyRound className="h-4 w-4 mr-2" />
-              Reset Password
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleBlockUser}>
-              <ShieldAlert className="h-4 w-4 mr-2 text-orange-600" />
-              Block User
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleUnblockUser}>
-              <ShieldCheck className="h-4 w-4 mr-2 text-green-600" />
-              Unblock User
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-      
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleDelete}
-        disabled={isPending || artworkCount > 0}
-        title={
-          artworkCount > 0
-            ? "Cannot delete artist with artworks"
-            : "Delete artist"
-        }
-      >
-        <Trash2
-          className={`h-4 w-4 ${
-            artworkCount > 0 ? "text-gray-400" : "text-red-600"
-          }`}
-        />
-      </Button>
-    </div>
+    <>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleToggleVisibility}
+          disabled={isPending}
+          title={isVisible ? "Hide artist" : "Show artist"}
+        >
+          {isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+        </Button>
+        
+        {hasUser && userId && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isPending}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleResetPassword}>
+                <KeyRound className="h-4 w-4 mr-2" />
+                Reset Password
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleBlockUser}>
+                <ShieldAlert className="h-4 w-4 mr-2 text-orange-600" />
+                Block User
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleUnblockUser}>
+                <ShieldCheck className="h-4 w-4 mr-2 text-green-600" />
+                Unblock User
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {!hasUser && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowInviteModal(true)}
+            disabled={isPending}
+            title="Send invitation to create user account"
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          >
+            <UserPlus className="h-4 w-4" />
+          </Button>
+        )}
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDelete}
+          disabled={isPending || artworkCount > 0}
+          title={
+            artworkCount > 0
+              ? "Cannot delete artist with artworks"
+              : "Delete artist"
+          }
+        >
+          <Trash2
+            className={`h-4 w-4 ${
+              artworkCount > 0 ? "text-gray-400" : "text-red-600"
+            }`}
+          />
+        </Button>
+      </div>
+
+      {/* Invite Artist Modal */}
+      <InviteExistingArtistModal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        onInvitationSent={() => {
+          router.refresh();
+        }}
+        artistName={artistName}
+        artistEmail={artistEmail}
+      />
+    </>
   );
 }
 

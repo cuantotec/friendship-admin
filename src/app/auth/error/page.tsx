@@ -5,13 +5,14 @@ import { AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 interface ErrorPageProps {
-  searchParams: {
+  searchParams: Promise<{
     error?: string;
-  };
+  }>;
 }
 
-export default function AuthErrorPage({ searchParams }: ErrorPageProps) {
-  const { error } = searchParams;
+export default async function AuthErrorPage({ searchParams }: ErrorPageProps) {
+  const params = await searchParams;
+  const { error } = params;
 
   const getErrorMessage = (error: string) => {
     switch (error) {

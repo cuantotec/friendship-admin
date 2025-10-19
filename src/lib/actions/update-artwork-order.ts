@@ -20,20 +20,27 @@ export async function updateArtworkOrder(
       };
     }
 
-    // Update each artwork's artist location ID using Drizzle
+    // Update each artwork's display orders using Drizzle
     for (const update of artworkUpdates) {
-      console.log(`Updating artwork ${update.id} with artist_display_order ${update.artistLocationId}`);
+      console.log(`Updating artwork ${update.id} with artist_display_order ${update.artistLocationId}${update.globalLocationId ? ` and global_display_order ${update.globalLocationId}` : ''}`);
+      
+      const updateData: Record<string, number> = {};
+      if (update.artistLocationId !== undefined) {
+        updateData.artistDisplayOrder = update.artistLocationId;
+      }
+      if (update.globalLocationId !== undefined) {
+        updateData.globalDisplayOrder = update.globalLocationId;
+      }
       
       const result = await db
         .update(artworks)
-        .set({
-          artistDisplayOrder: update.artistLocationId
-        })
+        .set(updateData)
         .where(eq(artworks.id, update.id))
         .returning({
           id: artworks.id,
           title: artworks.title,
-          artistDisplayOrder: artworks.artistDisplayOrder
+          artistDisplayOrder: artworks.artistDisplayOrder,
+          globalDisplayOrder: artworks.globalDisplayOrder
         });
       
       if (result.length === 0) {

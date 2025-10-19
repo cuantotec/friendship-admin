@@ -6,9 +6,21 @@ import { getArtistId } from "@/lib/stack-auth-helpers";
 import type { Artist, ArtworkWithDisplayOrder, ApiResponse } from "@/types";
 import { requireArtistAccess } from "@/lib/auth-helpers";
 import { eq, count, asc, desc } from "drizzle-orm";
+// Define user type based on Stack Auth user object structure
+type StackAuthUser = {
+  id: string;
+  displayName?: string | null;
+  primaryEmail?: string | null;
+  serverMetadata?: {
+    role?: string;
+    artistID?: string | number;
+  };
+  signOut: (options?: { redirectUrl?: string }) => Promise<void>;
+};
 
 export async function getArtistById(
-  artistId?: number
+  artistId?: number,
+  user?: StackAuthUser
 ): Promise<ApiResponse<{ artist: Artist; artworks: ArtworkWithDisplayOrder[] }>> {
   try {
     // If no artistId provided, get from current user
@@ -25,7 +37,19 @@ export async function getArtistById(
     }
 
     // Check authorization: must be admin or the artist themselves
-    await requireArtistAccess(currentArtistId);
+    // If user data is provided, use it directly to avoid another getUser() call
+    if (user) {
+      const role = user.serverMetadata?.role || 'artist';
+      const isAdmin = role === 'admin' || role === 'super_admin';
+      const userArtistId = user.serverMetadata?.artistID ? parseInt(user.serverMetadata.artistID.toString()) : null;
+      
+      if (!isAdmin && userArtistId !== currentArtistId) {
+        throw new Error("Unauthorized: You can only access your own profile");
+      }
+    } else {
+      // Fallback to the original method if no user data provided
+      await requireArtistAccess(currentArtistId);
+    }
 
     // Get artist with artworks using Drizzle query
     const artistData = await db.query.artists.findFirst({
@@ -85,9 +109,10 @@ export async function getArtistById(
       artistDisplayOrder: artwork.artistDisplayOrder || null,
       globalDisplayOrder: artwork.globalDisplayOrder || null,
       createdAt: artwork.createdAt,
+      approvalStatus: artwork.approvalStatus || 'pending',
       // Location IDs
-      globalLocationId: Math.floor(Math.random() * totalAvailable) + 1, // Random between 1 and total available
-      artistLocationId: artwork.artistDisplayOrder || index + 1 // Use database order or fallback to index
+      globalLocationId: artwork.globalDisplayOrder || index + 1, // Use database global order or fallback to index
+      artistLocationId: artwork.artistDisplayOrder || index + 1 // Use database artist order or fallback to index
     }));
 
     const artist: Artist = {

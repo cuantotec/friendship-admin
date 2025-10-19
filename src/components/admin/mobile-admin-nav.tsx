@@ -4,19 +4,37 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import ArtistInvitationModal from "./artist-invitation-modal";
 import { 
   LogOut, 
   Menu, 
   X,
   Plus,
-  UserPlus
+  UserPlus,
+  Home,
+  Palette,
+  Users,
+  Calendar,
+  ArrowUpDown
 } from "lucide-react";
 
 interface NavigationItem {
   name: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: string;
+}
+
+// Helper function to get icon component by name
+function getIconComponent(iconName: string) {
+  const iconMap = {
+    Home,
+    Palette,
+    Users,
+    Calendar,
+    ArrowUpDown,
+  };
+  return iconMap[iconName as keyof typeof iconMap] || Home;
 }
 
 interface MobileAdminNavProps {
@@ -29,6 +47,7 @@ interface MobileAdminNavProps {
 
 export function MobileAdminNav({ navigation, user }: MobileAdminNavProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const pathname = usePathname();
 
   const handleSignOut = () => {
@@ -52,23 +71,14 @@ export function MobileAdminNav({ navigation, user }: MobileAdminNavProps) {
                 <span className="sr-only">Open menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-80 p-0">
+            <SheetContent side="left" className="w-80 p-0 bg-white">
+              <SheetTitle className="sr-only">Admin Navigation Menu</SheetTitle>
               <div className="flex flex-col h-full">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
-                      <p className="text-sm text-gray-500">Friendship Gallery</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsOpen(false)}
-                      className="p-2"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                  <div>
+                    <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
+                    <p className="text-sm text-gray-500">Friendship Gallery</p>
                   </div>
                 </div>
 
@@ -76,21 +86,27 @@ export function MobileAdminNav({ navigation, user }: MobileAdminNavProps) {
                 <nav className="flex-1 p-4 space-y-2">
                   {navigation.map((item) => {
                     const isActive = pathname === item.href;
+                    const IconComponent = getIconComponent(item.icon);
                     return (
                       <Link
                         key={item.name}
                         href={item.href}
                         onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group ${
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group relative ${
                           isActive
-                            ? "bg-blue-50 text-blue-700 border border-blue-200"
-                            : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                            ? "bg-blue-50 text-blue-700 border-l-4 border-l-blue-500 shadow-sm"
+                            : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:shadow-sm"
                         }`}
                       >
-                        <item.icon className={`h-5 w-5 ${
+                        <IconComponent className={`h-5 w-5 transition-colors ${
                           isActive ? "text-blue-600" : "text-gray-500 group-hover:text-gray-700"
                         }`} />
                         <span className="font-medium">{item.name}</span>
+                        {isActive && (
+                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          </div>
+                        )}
                       </Link>
                     );
                   })}
@@ -106,8 +122,7 @@ export function MobileAdminNav({ navigation, user }: MobileAdminNavProps) {
                       className="w-full justify-start gap-2"
                       onClick={() => {
                         setIsOpen(false);
-                        // Navigate to invite artist page
-                        window.location.href = '/admin/artists?invite=true';
+                        setIsInviteModalOpen(true);
                       }}
                     >
                       <UserPlus className="h-4 w-4" />
@@ -119,7 +134,7 @@ export function MobileAdminNav({ navigation, user }: MobileAdminNavProps) {
                       className="w-full justify-start gap-2"
                       onClick={() => {
                         setIsOpen(false);
-                        // Navigate to add artwork page
+                        // Navigate to artworks page with add parameter
                         window.location.href = '/admin/artworks?add=true';
                       }}
                     >
@@ -187,6 +202,17 @@ export function MobileAdminNav({ navigation, user }: MobileAdminNavProps) {
           </Button>
         </div>
       </div>
+
+      {/* Modals */}
+      <ArtistInvitationModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        onInvitationSent={() => {
+          setIsInviteModalOpen(false);
+          // Refresh the page to show updated data
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }

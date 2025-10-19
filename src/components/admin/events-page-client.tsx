@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Calendar, Clock, MapPin } from "lucide-react";
 import type { EventListItem } from "@/types";
@@ -16,9 +16,45 @@ interface EventsPageClientProps {
 }
 
 export default function EventsPageClient({ events, stats }: EventsPageClientProps) {
+  const [showAddMessage, setShowAddMessage] = useState(false);
+
+  useEffect(() => {
+    // Check if we're on the add page
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('add') === 'true') {
+      setShowAddMessage(true);
+      // Remove the add parameter from URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('add');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
+      {/* Add Event Message */}
+      {showAddMessage && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-blue-600" />
+            <div>
+              <h3 className="text-sm font-medium text-blue-800">Event Creation</h3>
+              <p className="text-sm text-blue-700">
+                Event creation functionality is coming soon. For now, you can manage existing events by clicking the edit button on any event card.
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAddMessage(false)}
+              className="ml-auto text-blue-600 hover:text-blue-800"
+            >
+              ×
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Header with Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

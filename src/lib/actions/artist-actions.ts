@@ -52,7 +52,8 @@ export async function updateArtistProfile(
       bio: validatedData.bio || null,
       specialty: validatedData.specialty || null,
       exhibitions: exhibitionsArray,
-      profileImage: validatedData.profileImage || null
+      profileImage: validatedData.profileImage || null,
+      preApproved: validatedData.preApproved
     });
 
     const result = await db
@@ -63,7 +64,8 @@ export async function updateArtistProfile(
         bio: validatedData.bio || null,
         specialty: validatedData.specialty || null,
         exhibitions: exhibitionsArray,
-        profileImage: validatedData.profileImage || null
+        profileImage: validatedData.profileImage || null,
+        // pre_approved: validatedData.preApproved ?? false // TODO: Add when database column exists
       })
       .where(eq(artists.id, artistId))
       .returning();

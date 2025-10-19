@@ -14,9 +14,20 @@ import type {
   EventListItem,
   ApiResponse
 } from "@/types";
+// Define user type based on Stack Auth user object structure
+type StackAuthUser = {
+  id: string;
+  displayName?: string | null;
+  primaryEmail?: string | null;
+  serverMetadata?: {
+    role?: string;
+    artistID?: string | number;
+  };
+  signOut: (options?: { redirectUrl?: string }) => Promise<void>;
+};
 
 // Helper function to check admin access
-async function requireAdmin() {
+export async function requireAdmin() {
   const user = await stackServerApp.getUser();
   
   if (!user) {
@@ -46,8 +57,18 @@ async function triggerMainSiteRevalidation(pattern: () => Promise<unknown>) {
 }
 
 // Get admin dashboard stats
-export async function getAdminStats(): Promise<AdminStats> {
-  await requireAdmin();
+export async function getAdminStats(user?: StackAuthUser): Promise<AdminStats> {
+  if (user) {
+    // Use provided user data to avoid getUser() call
+    const role = user.serverMetadata?.role;
+    const hasAdminAccess = role === "admin" || role === "super_admin";
+    if (!hasAdminAccess) {
+      throw new Error("Unauthorized: Admin access required");
+    }
+  } else {
+    // Fallback to original method
+    await requireAdmin();
+  }
 
   try {
     // Get total artworks count
@@ -90,8 +111,18 @@ export async function getAdminStats(): Promise<AdminStats> {
 }
 
 // Get all artworks for admin
-export async function getAllArtworks(): Promise<ArtworkListItem[]> {
-  await requireAdmin();
+export async function getAllArtworks(user?: StackAuthUser): Promise<ArtworkListItem[]> {
+  if (user) {
+    // Use provided user data to avoid getUser() call
+    const role = user.serverMetadata?.role;
+    const hasAdminAccess = role === "admin" || role === "super_admin";
+    if (!hasAdminAccess) {
+      throw new Error("Unauthorized: Admin access required");
+    }
+  } else {
+    // Fallback to original method
+    await requireAdmin();
+  }
 
   try {
     const result = await db
@@ -104,6 +135,7 @@ export async function getAllArtworks(): Promise<ArtworkListItem[]> {
         year: artworks.year,
         medium: artworks.medium,
         dimensions: artworks.dimensions,
+        description: artworks.description,
         price: artworks.price,
         status: artworks.status,
         location: artworks.location,
@@ -111,6 +143,10 @@ export async function getAllArtworks(): Promise<ArtworkListItem[]> {
         originalImage: artworks.originalImage,
         isVisible: artworks.isVisible,
         featured: artworks.featured,
+        widthCm: artworks.widthCm,
+        heightCm: artworks.heightCm,
+        depthCm: artworks.depthCm,
+        approvalStatus: artworks.approvalStatus,
         createdAt: artworks.createdAt,
       })
       .from(artworks)
@@ -143,6 +179,7 @@ export async function getAllArtists(): Promise<ArtistListItem[]> {
         isVisible: artists.isVisible,
         isHidden: artists.isHidden,
         featured: artists.featured,
+        // preApproved: sql<boolean>`pre_approved`, // Column doesn't exist in database yet
         createdAt: artists.createdAt,
         artworkCount: sql<number>`(
           SELECT COUNT(*)::int 
@@ -178,6 +215,7 @@ export async function getAllArtists(): Promise<ArtistListItem[]> {
         ...row,
         email: stackUser?.primaryEmail || null,
         createdAt: row.createdAt.toISOString(),
+        preApproved: false, // Default value since column doesn't exist yet
         // Stack Auth user data
         hasUser: !!stackUser,
         userId: stackUser?.id || null,
@@ -213,6 +251,16 @@ export async function getAllEvents(): Promise<EventListItem[]> {
         registrationEnabled: events.registrationEnabled,
         paymentEnabled: events.paymentEnabled,
         isRecurring: events.isRecurring,
+        chabadPay: events.chabad_pay,
+        recurringType: events.recurringType,
+        recurringStartTime: events.recurringStartTime,
+        recurringStartAmpm: events.recurringStartAmPm,
+        recurringEndTime: events.recurringEndTime,
+        recurringEndAmpm: events.recurringEndAmPm,
+        featuredArtists: events.featuredArtists,
+        parentEventId: events.parentEventId,
+        isRecurringInstance: events.isRecurringInstance,
+        paymentTiers: events.paymentTiers,
         createdAt: events.createdAt,
       })
       .from(events)
@@ -502,20 +550,26 @@ export async function sendPasswordResetEmail(
   await requireAdmin();
 
   try {
-    // Note: Stack Auth password reset needs to be triggered via the Stack Auth Dashboard
-    // or using Stack Auth's API endpoints directly. This is a placeholder for future implementation.
-    // For now, we'll return a message directing admins to use the Stack Auth dashboard.
+    // Use Stack Auth SDK to send password reset email
+    const result = await stackServerApp.sendForgotPasswordEmail(userEmail);
     
-    return {
-      success: true,
-      data: { sent: true },
-      message: `To reset password for ${userEmail}, please use the Stack Auth Dashboard or send them the forgot password link: ${process.env.NEXTAUTH_URL || 'http://localhost:3002'}/forgot-password`,
-    };
+    if (result.status === "ok") {
+      return {
+        success: true,
+        data: { sent: true },
+        message: `Password reset instructions have been sent to ${userEmail}`
+      };
+    } else {
+      return {
+        success: false,
+        error: result.error?.message || "Failed to send password reset email"
+      };
+    }
   } catch (error) {
     console.error("Error sending password reset email:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to send password reset email",
+      error: error instanceof Error ? error.message : "Failed to send password reset email"
     };
   }
 }
@@ -530,21 +584,253 @@ export async function updateUserStatus(
   await requireAdmin();
 
   try {
-    // Note: Stack Auth user blocking/unblocking needs to be done via the Stack Auth Dashboard
-    // This is a placeholder for future implementation when Stack Auth provides an API for this.
+    // Use Stack Auth REST API to update user status
+    // For blocking/unblocking, we'll disable/enable email authentication
+    const response = await fetch(`https://api.stack-auth.com/api/v1/users/${userId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.SECRET_SERVER_KEY}`,
+      },
+      body: JSON.stringify({
+        primary_email_auth_enabled: !updates.disabled
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    await response.json();
     
     return {
       success: true,
       data: { updated: true },
       message: updates.disabled 
-        ? "To block this user, please use the Stack Auth Dashboard" 
-        : "To unblock this user, please use the Stack Auth Dashboard",
+        ? "User has been blocked (email authentication disabled)" 
+        : "User has been unblocked (email authentication enabled)",
     };
   } catch (error) {
     console.error("Error updating user status:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to update user status",
+    };
+  }
+}
+
+// Get pending artworks for admin
+export async function getPendingArtworks(): Promise<ArtworkListItem[]> {
+  await requireAdmin();
+
+  try {
+    const result = await db
+      .select({
+        id: artworks.id,
+        title: artworks.title,
+        slug: artworks.slug,
+        artistId: artworks.artistId,
+        artistName: artists.name,
+        year: artworks.year,
+        medium: artworks.medium,
+        dimensions: artworks.dimensions,
+        description: artworks.description,
+        price: artworks.price,
+        status: artworks.status,
+        location: artworks.location,
+        watermarkedImage: artworks.watermarkedImage,
+        originalImage: artworks.originalImage,
+        isVisible: artworks.isVisible,
+        featured: artworks.featured,
+        widthCm: artworks.widthCm,
+        heightCm: artworks.heightCm,
+        depthCm: artworks.depthCm,
+        approvalStatus: artworks.approvalStatus,
+        createdAt: artworks.createdAt,
+      })
+      .from(artworks)
+      .leftJoin(artists, eq(artworks.artistId, artists.id))
+      .where(eq(artworks.approvalStatus, 'pending'))
+      .orderBy(desc(artworks.createdAt));
+
+    return result.map(row => ({
+      ...row,
+      createdAt: row.createdAt.toISOString()
+    })) as ArtworkListItem[];
+  } catch (error) {
+    console.error("Error fetching pending artworks:", error);
+    throw new Error("Failed to fetch pending artworks");
+  }
+}
+
+// Update artwork approval status
+export async function updateArtworkApprovalStatus(
+  artworkId: number,
+  approvalStatus: 'pending' | 'approved' | 'rejected',
+  isVisible?: boolean
+): Promise<ApiResponse<{ updated: boolean }>> {
+  await requireAdmin();
+
+  try {
+    const updateData: {
+      approvalStatus: string;
+      isVisible?: boolean;
+    } = {
+      approvalStatus
+    };
+    
+    // If approving, also set visibility
+    if (approvalStatus === 'approved' && isVisible !== undefined) {
+      updateData.isVisible = isVisible;
+    }
+
+    const result = await db
+      .update(artworks)
+      .set(updateData)
+      .where(eq(artworks.id, artworkId))
+      .returning();
+
+    if (result.length === 0) {
+      return {
+        success: false,
+        error: "Artwork not found"
+      };
+    }
+
+    return {
+      success: true,
+      data: { updated: true },
+      message: `Artwork ${approvalStatus} successfully`
+    };
+  } catch (error) {
+    console.error("Error updating artwork approval status:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update approval status"
+    };
+  }
+}
+
+// Bulk approve all pending artworks
+export async function approveAllPendingArtworks(
+  isVisible: boolean = true
+): Promise<ApiResponse<{ updatedCount: number }>> {
+  await requireAdmin();
+
+  try {
+    const result = await db
+      .update(artworks)
+      .set({
+        approvalStatus: 'approved',
+        isVisible: isVisible
+      })
+      .where(eq(artworks.approvalStatus, 'pending'))
+      .returning();
+
+    return {
+      success: true,
+      data: { updatedCount: result.length },
+      message: `${result.length} artworks approved successfully`
+    };
+  } catch (error) {
+    console.error("Error bulk approving artworks:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to approve artworks"
+    };
+  }
+}
+
+// Update event (admin only)
+export async function updateEvent(
+  eventId: number,
+  updates: {
+    title: string;
+    description: string;
+    eventType: string;
+    slug: string;
+    startDate: string;
+    endDate?: string | null;
+    location?: string | null;
+    address?: string | null;
+    externalUrl?: string | null;
+    registrationUrl?: string | null;
+    registrationType: string;
+    status: string;
+    featuredImage?: string | null;
+    registrationEnabled: boolean;
+    paymentEnabled: boolean;
+    isCanceled: boolean;
+    isRecurring: boolean;
+    isFreeEvent: boolean;
+    chabadPay?: boolean;
+    recurringType?: string | null;
+    recurringStartTime?: string | null;
+    recurringStartAmpm?: string | null;
+    recurringEndTime?: string | null;
+    recurringEndAmpm?: string | null;
+    featuredArtists?: unknown;
+    parentEventId?: number | null;
+    isRecurringInstance?: boolean;
+    paymentTiers?: unknown;
+  }
+): Promise<ApiResponse<{ updated: boolean }>> {
+  await requireAdmin();
+
+  try {
+    const result = await db
+      .update(events)
+      .set({
+        title: updates.title,
+        description: updates.description,
+        eventType: updates.eventType,
+        slug: updates.slug,
+        startDate: new Date(updates.startDate),
+        endDate: updates.endDate ? new Date(updates.endDate) : null,
+        location: updates.location,
+        address: updates.address,
+        externalUrl: updates.externalUrl,
+        registrationUrl: updates.registrationUrl,
+        registrationType: updates.registrationType,
+        status: updates.status,
+        featuredImage: updates.featuredImage,
+        registrationEnabled: updates.registrationEnabled,
+        paymentEnabled: updates.paymentEnabled,
+        is_canceled: updates.isCanceled,
+        isRecurring: updates.isRecurring,
+        isFreeEvent: updates.isFreeEvent,
+        chabad_pay: updates.chabadPay ?? true,
+        recurringType: updates.recurringType,
+        recurringStartTime: updates.recurringStartTime,
+        recurringStartAmPm: updates.recurringStartAmpm,
+        recurringEndTime: updates.recurringEndTime,
+        recurringEndAmPm: updates.recurringEndAmpm,
+        featuredArtists: updates.featuredArtists as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        parentEventId: updates.parentEventId,
+        isRecurringInstance: updates.isRecurringInstance ?? false,
+        paymentTiers: updates.paymentTiers as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+      })
+      .where(eq(events.id, eventId))
+      .returning();
+
+    if (result.length === 0) {
+      return {
+        success: false,
+        error: "Event not found"
+      };
+    }
+
+    return {
+      success: true,
+      data: { updated: true },
+      message: "Event updated successfully"
+    };
+  } catch (error) {
+    console.error("Error updating event:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update event"
     };
   }
 }

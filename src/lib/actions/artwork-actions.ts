@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { artworks } from "@/lib/schema";
+import { artworks, artists } from "@/lib/schema";
 import type { Artwork, ApiResponse } from "@/types";
 import { updateArtworkSchema, createArtworkSchema } from "@/lib/validations";
 import type { ZodError } from "zod";
@@ -9,6 +9,7 @@ import { requireArtworkAccess } from "@/lib/auth-helpers";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { revalidationPatterns } from "@/lib/revalidation";
+import { sendArtworkSubmissionNotification } from "@/lib/emailer";
 
 // Helper function to trigger revalidation on main site with error handling
 async function triggerMainSiteRevalidation(pattern: () => Promise<unknown>) {
@@ -254,6 +255,40 @@ export async function createArtwork(
     console.log("Create result:", result);
 
     console.log("Artwork created successfully:", result[0]);
+    
+    // Send email notification to admins
+    try {
+      const artwork = result[0] as Artwork;
+      const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/artworks?tab=pending`;
+      
+      // Get artist name from database
+      const artistResult = await db
+        .select({ name: artists.name })
+        .from(artists)
+        .where(eq(artists.id, artwork.artistId))
+        .limit(1);
+      
+      const artistName = artistResult[0]?.name || 'Unknown Artist';
+      
+      await sendArtworkSubmissionNotification({
+        artistName,
+        artworkTitle: artwork.title,
+        artworkId: artwork.id.toString(),
+        submissionDate: new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        reviewUrl
+      });
+      
+      console.log("✅ Email notification sent to admins");
+    } catch (emailError) {
+      console.error("❌ Failed to send email notification:", emailError);
+      // Don't fail the artwork creation if email fails
+    }
     
     // Revalidate ISR for all pages that display artwork data
     revalidatePath("/");

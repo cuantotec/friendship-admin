@@ -105,6 +105,8 @@ export const artworks = pgTable("artworks", {
   // Display ordering for drag-and-drop functionality
   artistDisplayOrder: integer("artist_display_order").default(0),
   globalDisplayOrder: integer("global_display_order").default(0),
+  // Approval status for admin review
+  approvalStatus: text("approval_status").default("pending").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -383,3 +385,20 @@ export type GalleryHoursInsert = z.infer<typeof galleryHoursInsertSchema>;
 
 export type EventArtist = typeof eventArtists.$inferSelect;
 export type EventArtistInsert = z.infer<typeof eventArtistsInsertSchema>;
+
+// Event Registrations Table
+export const eventRegistrations = pgTable("event_registrations", {
+  id: serial("id").primaryKey().notNull(),
+  eventId: integer("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  fullName: text("full_name").notNull(),
+  email: text("email").notNull(),
+  phoneNumber: text("phone_number"),
+  numberOfAttendees: integer("number_of_attendees").default(1).notNull(),
+  additionalInformation: text("additional_information"),
+  registrationData: jsonb("registration_data").default({}),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull(),
+});
+
+export type EventRegistration = typeof eventRegistrations.$inferSelect;
+export type EventRegistrationInsert = typeof eventRegistrations.$inferInsert;

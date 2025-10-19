@@ -22,6 +22,13 @@
       "when": 1760648601718,
       "tag": "0002_first_midnight",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1760892210509,
+      "tag": "0003_tired_omega_sentinel",
+      "breakpoints": true
     }
   ]
 }

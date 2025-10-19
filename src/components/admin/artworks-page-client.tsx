@@ -2,23 +2,35 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Grid, List, Filter } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Filter, Clock, Palette } from "lucide-react";
+import PendingArtworksTab from "./pending-artworks-tab";
+import ArtworksCards from "./artworks-cards";
+import ArtworksFilters from "./artworks-filters";
 import type { ArtworkListItem } from "@/types";
 
 interface ArtworksPageClientProps {
   artworks: ArtworkListItem[];
+  pendingArtworks: ArtworkListItem[];
   stats: {
     total: number;
     visible: number;
     hidden: number;
+    pending: number;
     worth: number;
   };
   locations: string[];
 }
 
-export default function ArtworksPageClient({ artworks, stats, locations }: ArtworksPageClientProps) {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+export default function ArtworksPageClient({ artworks, pendingArtworks, stats, locations }: ArtworksPageClientProps) {
   const [showFilters, setShowFilters] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
+
+  const handleArtworkUpdated = () => {
+    // Refresh the page to show updated data
+    window.location.reload();
+  };
 
   return (
     <div className="space-y-6">
@@ -32,26 +44,6 @@ export default function ArtworksPageClient({ artworks, stats, locations }: Artwo
         </div>
         
         <div className="flex items-center gap-2">
-          {/* View Mode Toggle */}
-          <div className="flex items-center border border-gray-200 rounded-lg p-1">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className="h-8 w-8 p-0"
-            >
-              <Grid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="h-8 w-8 p-0"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
-
           {/* Filter Toggle - Mobile */}
           <Button
             variant="outline"
@@ -75,7 +67,7 @@ export default function ArtworksPageClient({ artworks, stats, locations }: Artwo
       </div>
 
       {/* Stats Grid - Mobile First */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
           <div className="text-xs sm:text-sm text-gray-600">Total Artworks</div>
           <div className="text-lg sm:text-2xl font-bold text-gray-900">{stats.total}</div>
@@ -89,6 +81,13 @@ export default function ArtworksPageClient({ artworks, stats, locations }: Artwo
           <div className="text-lg sm:text-2xl font-bold text-gray-600">{stats.hidden}</div>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+          <div className="text-xs sm:text-sm text-gray-600 flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            Pending
+          </div>
+          <div className="text-lg sm:text-2xl font-bold text-yellow-600">{stats.pending}</div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
           <div className="text-xs sm:text-sm text-gray-600">Total Worth</div>
           <div className="text-lg sm:text-2xl font-bold text-green-600">
             ${stats.worth.toLocaleString()}
@@ -96,37 +95,55 @@ export default function ArtworksPageClient({ artworks, stats, locations }: Artwo
         </div>
       </div>
 
-      {/* Mobile Filters */}
-      {showFilters && (
-        <div className="lg:hidden bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="font-medium text-gray-900 mb-3">Filters</h3>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                <option value="all">All Statuses</option>
-                <option value="Available">Available</option>
-                <option value="Sold">Sold</option>
-                <option value="Reserved">Reserved</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-              <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                <option value="all">All Locations</option>
-                {locations.map((location) => (
-                  <option key={location} value={location}>{location}</option>
-                ))}
-              </select>
-            </div>
-            <Button className="w-full" onClick={() => setShowFilters(false)}>
-              Apply Filters
-            </Button>
-          </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+          <TabsList className="grid w-full grid-cols-2 bg-transparent">
+            <TabsTrigger 
+              value="all" 
+              className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-blue-200 data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Palette className="h-4 w-4" />
+              <span className="font-medium">All Artworks</span>
+              <Badge variant="secondary" className="ml-1 bg-gray-100 text-gray-600">
+                {stats.total}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="pending" 
+              className="flex items-center gap-2 data-[state=active]:bg-yellow-50 data-[state=active]:text-yellow-700 data-[state=active]:border-yellow-200 data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Clock className="h-4 w-4" />
+              <span className="font-medium">Pending</span>
+              <Badge 
+                variant="secondary" 
+                className={`ml-1 ${
+                  stats.pending > 0 
+                    ? 'bg-yellow-100 text-yellow-700 border-yellow-200' 
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {stats.pending}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
         </div>
-      )}
 
-      {/* Artworks will be rendered by the server component */}
+        <TabsContent value="all" className="space-y-6">
+          {/* Filters */}
+          <ArtworksFilters locations={locations} />
+
+          {/* Artworks Cards */}
+          <ArtworksCards artworks={artworks} />
+        </TabsContent>
+
+        <TabsContent value="pending" className="space-y-6">
+          <PendingArtworksTab 
+            pendingArtworks={pendingArtworks}
+            onArtworkUpdated={handleArtworkUpdated}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

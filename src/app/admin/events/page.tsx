@@ -1,5 +1,5 @@
 import { getAllEvents } from "@/lib/actions/admin-actions";
-import EventsTable from "@/components/admin/events-table";
+import EventsCards from "@/components/admin/events-cards";
 import EventsFilters from "@/components/admin/events-filters";
 import EventsPageClient from "@/components/admin/events-page-client";
 
@@ -12,15 +12,16 @@ interface SearchParams {
 export default async function AdminEventsPage({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: Promise<SearchParams>;
 }) {
   const allEvents = await getAllEvents();
+  const params = await searchParams;
 
   // Server-side filtering
   const filteredEvents = allEvents.filter((event) => {
-    if (!searchParams.search) return true;
+    if (!params.search) return true;
     
-    const searchLower = searchParams.search.toLowerCase();
+    const searchLower = params.search.toLowerCase();
     return (
       event.title.toLowerCase().includes(searchLower) ||
       event.description.toLowerCase().includes(searchLower) ||
@@ -45,14 +46,14 @@ export default async function AdminEventsPage({
 
   return (
     <div className="space-y-6">
-      {/* Client component for interactive features */}
+      {/* Client component with interactive header */}
       <EventsPageClient events={filteredEvents} stats={stats} />
 
       {/* Filters - Client component for form interaction only */}
       <EventsFilters />
 
-      {/* Table - Server-rendered with server actions */}
-      <EventsTable events={filteredEvents} />
+      {/* Cards - Mobile-first layout */}
+      <EventsCards events={filteredEvents} />
     </div>
   );
 }

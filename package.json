@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate --config=./drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=./drizzle.config.ts",
     "postbuild": "drizzle-kit generate --config=./drizzle.config.ts",
-    "test:email": "tsx scripts/test-email.ts"
+    "test:email": "tsx scripts/test-email.ts",
+    "populate-display-orders": "tsx scripts/populate-display-orders.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.10.0",

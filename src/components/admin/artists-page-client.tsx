@@ -60,10 +60,7 @@ export default function ArtistsPageClient({ artists, stats }: ArtistsPageClientP
           </div>
         </div>
 
-        {/* Artists Table */}
-        <div className="bg-white rounded-lg border border-gray-200">
-          {/* This will be rendered by the server component */}
-        </div>
+        {/* Artists will be rendered as cards by the server component */}
       </div>
 
       {/* Invitation Modal */}

@@ -34,6 +34,7 @@ export const artworks = pgTable("artworks", {
 	watermarkedImagesHistory: jsonb("watermarked_images_history").default([]),
 	isFramed: boolean("is_framed").default(false).notNull(),
 	location: text().default('Gallery').notNull(),
+	approvalStatus: text("approval_status").default('pending').notNull(),
 }, (table) => [
 	index("idx_artworks_featured_performance").using("btree", table.featured.desc().nullsFirst().op("int4_ops"), table.isVisible.asc().nullsLast().op("int4_ops"), table.status.asc().nullsLast().op("int4_ops"), table.createdAt.desc().nullsFirst().op("int4_ops")).where(sql`((featured > 0) AND (is_visible = true) AND (watermarked_image IS NOT NULL))`),
 	foreignKey({
@@ -44,42 +45,83 @@ export const artworks = pgTable("artworks", {
 	unique("artworks_slug_unique").on(table.slug),
 ]);
 
-export const payments = pgTable("payments", {
+export const artistInvitations = pgTable("artist_invitations", {
 	id: serial().primaryKey().notNull(),
-	transactionId: text("transaction_id").notNull(),
-	eventId: integer("event_id").notNull(),
-	submissionId: integer("submission_id"),
-	amount: numeric({ precision: 10, scale:  2 }).notNull(),
-	currency: text().default('USD').notNull(),
-	status: text().notNull(),
-	paymentMethod: text("payment_method").notNull(),
-	customerName: text("customer_name").notNull(),
-	customerEmail: text("customer_email").notNull(),
-	authCode: text("auth_code"),
-	responseCode: text("response_code"),
-	responseText: text("response_text"),
-	avsResultCode: text("avs_result_code"),
-	cvvResultCode: text("cvv_result_code"),
-	errorMessage: text("error_message"),
-	paymentData: jsonb("payment_data"),
-	processedAt: timestamp("processed_at", { mode: 'string' }).defaultNow().notNull(),
+	email: text().notNull(),
+	name: text().notNull(),
+	specialty: text(),
+	message: text(),
+	code: text().notNull(),
+	invitedBy: text("invited_by").notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
-	invoiceNumber: text("invoice_number"),
-	selectedTierId: text("selected_tier_id"),
-	tierName: text("tier_name"),
-	quantity: integer().default(1),
+	usedAt: timestamp("used_at", { mode: 'string' }),
+	expiresAt: timestamp("expires_at", { mode: 'string' }).default(sql`(now() + '7 days'::interval)`),
 }, (table) => [
-	foreignKey({
-			columns: [table.eventId],
-			foreignColumns: [events.id],
-			name: "payments_event_id_fkey"
-		}),
-	foreignKey({
-			columns: [table.submissionId],
-			foreignColumns: [formSubmissions.id],
-			name: "payments_submission_id_fkey"
-		}),
-	unique("payments_transaction_id_key").on(table.transactionId),
+	unique("artist_invitations_code_unique").on(table.code),
+]);
+
+export const contacts = pgTable("contacts", {
+	id: serial().primaryKey().notNull(),
+	name: text().notNull(),
+	email: text().notNull(),
+	phone: text(),
+	subject: text().notNull(),
+	message: text().notNull(),
+	formData: json("form_data"),
+	source: text(),
+	isArchived: boolean("is_archived").default(false),
+	optInEmails: boolean("opt_in_emails").default(true).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+});
+
+export const eventArtists = pgTable("event_artists", {
+	id: serial().primaryKey().notNull(),
+	eventId: integer("event_id").notNull(),
+	artistId: integer("artist_id").notNull(),
+	displayOrder: integer("display_order").default(0),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+});
+
+export const galleryHours = pgTable("gallery_hours", {
+	id: serial().primaryKey().notNull(),
+	mondayOpen: text("monday_open"),
+	mondayClose: text("monday_close"),
+	mondayUseText: boolean("monday_use_text").default(false).notNull(),
+	mondayText: text("monday_text"),
+	tuesdayOpen: text("tuesday_open"),
+	tuesdayClose: text("tuesday_close"),
+	tuesdayUseText: boolean("tuesday_use_text").default(false).notNull(),
+	tuesdayText: text("tuesday_text"),
+	wednesdayOpen: text("wednesday_open"),
+	wednesdayClose: text("wednesday_close"),
+	wednesdayUseText: boolean("wednesday_use_text").default(false).notNull(),
+	wednesdayText: text("wednesday_text"),
+	thursdayOpen: text("thursday_open"),
+	thursdayClose: text("thursday_close"),
+	thursdayUseText: boolean("thursday_use_text").default(false).notNull(),
+	thursdayText: text("thursday_text"),
+	fridayOpen: text("friday_open"),
+	fridayClose: text("friday_close"),
+	fridayUseText: boolean("friday_use_text").default(false).notNull(),
+	fridayText: text("friday_text"),
+	saturdayOpen: text("saturday_open"),
+	saturdayClose: text("saturday_close"),
+	saturdayUseText: boolean("saturday_use_text").default(false).notNull(),
+	saturdayText: text("saturday_text"),
+	sundayOpen: text("sunday_open"),
+	sundayClose: text("sunday_close"),
+	sundayUseText: boolean("sunday_use_text").default(false).notNull(),
+	sundayText: text("sunday_text"),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull(),
+});
+
+export const newsletters = pgTable("newsletters", {
+	id: serial().primaryKey().notNull(),
+	email: text().notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	unique("newsletters_email_unique").on(table.email),
 ]);
 
 export const artists = pgTable("artists", {
@@ -103,38 +145,7 @@ export const artists = pgTable("artists", {
 	slug: text(),
 	isVisible: boolean("is_visible").default(true).notNull(),
 	featured: boolean().default(false).notNull(),
-}, (table) => [
-	unique("artists_email_key").on(table.email),
-]);
-
-export const formSubmissions = pgTable("form_submissions", {
-	id: serial().primaryKey().notNull(),
-	templateId: integer("template_id").notNull(),
-	formData: text("form_data").notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
-	eventId: integer("event_id"),
-	submitterName: text("submitter_name"),
-	submitterEmail: text("submitter_email"),
-	status: text().default('new').notNull(),
-	confirmationCode: text("confirmation_code"),
-	isArchived: boolean("is_archived").default(false),
-	paymentId: text("payment_id"),
-	paymentInfo: jsonb("payment_info"),
-	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
-	archived: boolean().default(false),
-	selectedTier: jsonb("selected_tier"),
-}, (table) => [
-	foreignKey({
-			columns: [table.eventId],
-			foreignColumns: [events.id],
-			name: "form_submissions_event_id_events_id_fk"
-		}),
-	foreignKey({
-			columns: [table.templateId],
-			foreignColumns: [formTemplates.id],
-			name: "form_submissions_template_id_form_templates_id_fk"
-		}),
-]);
+});
 
 export const inquiries = pgTable("inquiries", {
 	id: serial().primaryKey().notNull(),
@@ -188,11 +199,6 @@ export const events = pgTable("events", {
 	chabadPay: boolean("chabad_pay").default(true),
 }, (table) => [
 	foreignKey({
-			columns: [table.formTemplateId],
-			foreignColumns: [formTemplates.id],
-			name: "events_form_template_id_form_templates_id_fk"
-		}),
-	foreignKey({
 			columns: [table.parentEventId],
 			foreignColumns: [table.id],
 			name: "events_parent_event_id_fkey"
@@ -201,49 +207,21 @@ export const events = pgTable("events", {
 	unique("events_slug_unique").on(table.slug),
 ]);
 
-export const formTemplates = pgTable("form_templates", {
+export const eventRegistrations = pgTable("event_registrations", {
 	id: serial().primaryKey().notNull(),
-	name: text().notNull(),
-	description: text(),
+	eventId: integer("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+	fullName: text("full_name").notNull(),
+	email: text("email").notNull(),
+	phoneNumber: text("phone_number"),
+	numberOfAttendees: integer("number_of_attendees").default(1).notNull(),
+	additionalInformation: text("additional_information"),
+	registrationData: jsonb("registration_data").default({}),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull(),
-	isDefault: boolean("is_default").default(false).notNull(),
-});
-
-export const subscribers = pgTable("subscribers", {
-	id: serial().primaryKey().notNull(),
-	email: text().notNull(),
-	name: text(),
-	isActive: boolean("is_active").default(true).notNull(),
-	source: text().default('event_registration').notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	lastUpdated: timestamp("last_updated", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	phone: text(),
-	metadata: jsonb(),
-	unsubscribeToken: text("unsubscribe_token").notNull(),
-	address: text(),
 }, (table) => [
-	unique("subscribers_email_key").on(table.email),
-	unique("subscribers_unsubscribe_token_key").on(table.unsubscribeToken),
+	foreignKey({
+		columns: [table.eventId],
+		foreignColumns: [events.id],
+		name: "event_registrations_event_id_fkey"
+	}),
 ]);
-
-export const watermarkConfig = pgTable("watermark_config", {
-	id: serial().primaryKey().notNull(),
-	enabled: boolean().default(true).notNull(),
-	imageUrl: text("image_url").default(''),
-	position: text().default('bottom_right'),
-	opacity: integer().default(70),
-	size: integer().default(50),
-	offsetX: integer("offset_x").default(20),
-	offsetY: integer("offset_y").default(20),
-	quality: text().default('auto'),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull(),
-	textWatermarkEnabled: boolean("text_watermark_enabled").default(false),
-	textWatermarkContent: text("text_watermark_content").default('Test'),
-	textWatermarkFontSize: integer("text_watermark_font_size").default(24),
-	textWatermarkOpacity: integer("text_watermark_opacity").default(80),
-	textWatermarkFontFamily: text("text_watermark_font_family").default('Arial'),
-	textWatermarkColor: text("text_watermark_color").default('#FFFFFF'),
-	textWatermarkBold: boolean("text_watermark_bold").default(true),
-});

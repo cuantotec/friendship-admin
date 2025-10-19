@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { inviteArtist } from "@/lib/actions/artist-invitation-actions";
 import { toast } from "sonner";
 import { 
@@ -15,8 +14,9 @@ import {
   XCircle,
   Mail,
   User,
-  Palette
+  Shield
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface ArtistInvitationModalProps {
   isOpen: boolean;
@@ -33,11 +33,10 @@ export default function ArtistInvitationModal({
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    specialty: "",
-    message: ""
+    preApproved: false
   });
 
-  const handleInputChange = (field: keyof typeof formData, value: string) => {
+  const handleInputChange = (field: keyof typeof formData, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -65,8 +64,7 @@ export default function ArtistInvitationModal({
       const formDataObj = new FormData();
       formDataObj.append("name", formData.name);
       formDataObj.append("email", formData.email);
-      formDataObj.append("specialty", formData.specialty);
-      formDataObj.append("message", formData.message);
+      formDataObj.append("preApproved", formData.preApproved.toString());
 
       const result = await inviteArtist(formDataObj);
       
@@ -81,8 +79,7 @@ export default function ArtistInvitationModal({
         setFormData({
           name: "",
           email: "",
-          specialty: "",
-          message: ""
+          preApproved: false
         });
         
         onInvitationSent();
@@ -107,7 +104,7 @@ export default function ArtistInvitationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-md mx-4">
+      <DialogContent className="w-full max-w-md mx-4 bg-white">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-blue-600" />
@@ -153,39 +150,83 @@ export default function ArtistInvitationModal({
             </div>
           </div>
 
-          {/* Specialty */}
-          <div>
-            <Label htmlFor="specialty" className="text-sm font-medium text-gray-700">
-              Specialty / Medium
-            </Label>
-            <div className="relative mt-1">
-              <Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                id="specialty"
-                value={formData.specialty}
-                onChange={(e) => handleInputChange("specialty", e.target.value)}
-                className="pl-10"
-                placeholder="e.g., Oil Painting, Sculpture, Mixed Media"
-              />
+          {/* Pre-Approval Toggle */}
+          <div className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+            formData.preApproved 
+              ? 'bg-emerald-50 border-emerald-300' 
+              : 'bg-amber-50 border-amber-300'
+          }`}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-full ${
+                  formData.preApproved 
+                    ? 'bg-emerald-100 text-emerald-600' 
+                    : 'bg-amber-100 text-amber-600'
+                }`}>
+                  <Shield className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Label className={`text-base font-semibold ${
+                      formData.preApproved ? 'text-emerald-900' : 'text-amber-900'
+                    }`}>
+                      Pre-Approved Artist
+                    </Label>
+                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                      formData.preApproved 
+                        ? 'bg-emerald-200 text-emerald-800 border border-emerald-300' 
+                        : 'bg-amber-200 text-amber-800 border border-amber-300'
+                    }`}>
+                      {formData.preApproved ? '✓ ENABLED' : '⚠ DISABLED'}
+                    </span>
+                  </div>
+                  <p className={`text-sm mb-2 ${
+                    formData.preApproved ? 'text-emerald-700' : 'text-amber-700'
+                  }`}>
+                    {formData.preApproved 
+                      ? '✅ This artist can upload artworks directly to the website without admin review'
+                      : '⏳ This artist\'s artworks will require admin approval before going live'
+                    }
+                  </p>
+                  <div className={`text-xs px-3 py-1 rounded-md ${
+                    formData.preApproved 
+                      ? 'text-emerald-600 bg-emerald-100' 
+                      : 'text-amber-600 bg-amber-100'
+                  }`}>
+                    💡 {formData.preApproved 
+                      ? 'Artist has auto-approval enabled' 
+                      : 'Toggle this on for trusted artists who don\'t need artwork review'
+                    }
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ease-in-out ${
+                  formData.preApproved 
+                    ? 'bg-emerald-500 shadow-lg shadow-emerald-500/25' 
+                    : 'bg-gray-300 hover:bg-gray-400'
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={formData.preApproved}
+                    onChange={(e) => handleInputChange("preApproved", e.target.checked)}
+                    className="sr-only"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange("preApproved", !formData.preApproved)}
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-all duration-200 ease-in-out ${
+                      formData.preApproved ? 'translate-x-6 shadow-xl' : 'translate-x-1 shadow-md'
+                    }`}
+                  />
+                </div>
+                <span className={`text-xs font-semibold transition-colors duration-200 ${
+                  formData.preApproved ? 'text-emerald-700' : 'text-amber-700'
+                }`}>
+                  {formData.preApproved ? 'Auto-approve' : 'Require review'}
+                </span>
+              </div>
             </div>
-          </div>
-
-          {/* Personal Message */}
-          <div>
-            <Label htmlFor="message" className="text-sm font-medium text-gray-700">
-              Personal Message (Optional)
-            </Label>
-            <Textarea
-              id="message"
-              value={formData.message}
-              onChange={(e) => handleInputChange("message", e.target.value)}
-              className="mt-1"
-              rows={3}
-              placeholder="Add a personal message to the invitation..."
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              This message will be included in the invitation email
-            </p>
           </div>
 
           {/* Action Buttons */}

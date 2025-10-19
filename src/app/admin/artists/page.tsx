@@ -1,5 +1,5 @@
 import { getAllArtists } from "@/lib/actions/admin-actions";
-import ArtistsTable from "@/components/admin/artists-table";
+import ArtistsCards from "@/components/admin/artists-cards";
 import ArtistsFilters from "@/components/admin/artists-filters";
 import ArtistsPageClient from "@/components/admin/artists-page-client";
 
@@ -39,14 +39,14 @@ export default async function AdminArtistsPage({
 
   return (
     <div className="space-y-6">
-      {/* Client component for interactive features */}
+      {/* Client component with interactive header */}
       <ArtistsPageClient artists={filteredArtists} stats={stats} />
 
       {/* Filters - Client component for form interaction only */}
       <ArtistsFilters />
 
-      {/* Table - Server-rendered with server actions */}
-      <ArtistsTable artists={filteredArtists} />
+      {/* Cards - Mobile-first layout */}
+      <ArtistsCards artists={filteredArtists} />
     </div>
   );
 }

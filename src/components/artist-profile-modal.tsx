@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { updateArtistProfile } from "@/lib/actions/artist-actions";
+import { deleteArtistAdmin } from "@/lib/actions/admin-actions";
 import { toast } from "sonner";
 import { 
   Save, 
@@ -16,8 +17,11 @@ import {
   User,
   Upload,
   Image as ImageIcon,
-  X
+  X,
+  Trash2,
+  Shield
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { Artist } from "@/types";
 
@@ -26,24 +30,29 @@ interface ArtistProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   onProfileUpdated: () => void;
+  artworkCount?: number;
 }
 
 // Form data type for editing (exhibitions as string for textarea)
 type ArtistFormData = Omit<Artist, 'exhibitions'> & {
   exhibitions: string | null;
+  preApproved?: boolean;
 };
 
 export default function ArtistProfileModal({ 
   artist, 
   isOpen, 
   onClose,
-  onProfileUpdated
+  onProfileUpdated,
+  artworkCount = 0
 }: ArtistProfileModalProps) {
   const [editedProfile, setEditedProfile] = useState<ArtistFormData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (artist && isOpen) {
@@ -52,15 +61,17 @@ export default function ArtistProfileModal({
         ...artist,
         exhibitions: artist.exhibitions && Array.isArray(artist.exhibitions) 
           ? artist.exhibitions.join('\n') 
-          : null
+          : null,
+        preApproved: false // Will be loaded from database separately
       };
+      console.log("Artist profile data:", profileData);
       setEditedProfile(profileData);
       // Set image preview if profile image exists
       setImagePreview(artist.profileImage || null);
     }
   }, [artist, isOpen]);
 
-  const handleInputChange = (field: keyof ArtistFormData, value: string) => {
+  const handleInputChange = (field: keyof ArtistFormData, value: string | boolean) => {
     if (editedProfile) {
       setEditedProfile({
         ...editedProfile,
@@ -177,7 +188,8 @@ export default function ArtistProfileModal({
         bio: editedProfile.bio,
         specialty: editedProfile.specialty,
         exhibitions: editedProfile.exhibitions,
-        profileImage: editedProfile.profileImage
+        profileImage: editedProfile.profileImage,
+        preApproved: editedProfile.preApproved
       });
       
       if (result.success) {
@@ -203,6 +215,52 @@ export default function ArtistProfileModal({
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteArtist = async () => {
+    if (!artist) return;
+
+    if (artworkCount > 0) {
+      toast.error("Cannot delete artist with existing artworks", {
+        description: "Please delete or reassign all artworks first"
+      });
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete artist "${artist.name}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    const loadingToast = toast.loading("Deleting artist...", {
+      description: "Please wait while we remove the artist."
+    });
+
+    try {
+      const result = await deleteArtistAdmin(artist.id);
+      if (result.success) {
+        toast.dismiss(loadingToast);
+        toast.success("Artist deleted successfully", {
+          description: "The artist has been removed from the system.",
+          icon: <CheckCircle className="h-4 w-4" />
+        });
+        onClose();
+        router.refresh();
+      } else {
+        toast.dismiss(loadingToast);
+        toast.error(result.error || "Failed to delete artist", {
+          icon: <XCircle className="h-4 w-4" />
+        });
+      }
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error("Failed to delete artist", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        icon: <XCircle className="h-4 w-4" />
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -353,26 +411,126 @@ export default function ArtistProfileModal({
             <p className="text-xs text-gray-500 mt-1">Enter one per line (press Enter for new line)</p>
           </div>
 
+          {/* Pre-Approval Toggle */}
+          <div className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+            editedProfile.preApproved 
+              ? 'bg-emerald-50 border-emerald-300' 
+              : 'bg-amber-50 border-amber-300'
+          }`}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-full ${
+                  editedProfile.preApproved 
+                    ? 'bg-emerald-100 text-emerald-600' 
+                    : 'bg-amber-100 text-amber-600'
+                }`}>
+                  <Shield className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Label className={`text-base font-semibold ${
+                      editedProfile.preApproved ? 'text-emerald-900' : 'text-amber-900'
+                    }`}>
+                      Pre-Approved Artist
+                    </Label>
+                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                      editedProfile.preApproved 
+                        ? 'bg-emerald-200 text-emerald-800 border border-emerald-300' 
+                        : 'bg-amber-200 text-amber-800 border border-amber-300'
+                    }`}>
+                      {editedProfile.preApproved ? '✓ ENABLED' : '⚠ DISABLED'}
+                    </span>
+                  </div>
+                  <p className={`text-sm mb-2 ${
+                    editedProfile.preApproved ? 'text-emerald-700' : 'text-amber-700'
+                  }`}>
+                    {editedProfile.preApproved 
+                      ? '✅ This artist can upload artworks directly to the website without admin review'
+                      : '⏳ This artist\'s artworks will require admin approval before going live'
+                    }
+                  </p>
+                  <div className={`text-xs px-3 py-1 rounded-md ${
+                    editedProfile.preApproved 
+                      ? 'text-emerald-600 bg-emerald-100' 
+                      : 'text-amber-600 bg-amber-100'
+                  }`}>
+                    💡 {editedProfile.preApproved 
+                      ? 'Artist has auto-approval enabled' 
+                      : 'Toggle this on for trusted artists who don\'t need artwork review'
+                    }
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ease-in-out ${
+                  editedProfile.preApproved 
+                    ? 'bg-emerald-500 shadow-lg shadow-emerald-500/25' 
+                    : 'bg-gray-300 hover:bg-gray-400'
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={editedProfile.preApproved || false}
+                    onChange={(e) => handleInputChange("preApproved", e.target.checked)}
+                    className="sr-only"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange("preApproved", !editedProfile.preApproved)}
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-all duration-200 ease-in-out ${
+                      editedProfile.preApproved ? 'translate-x-6 shadow-xl' : 'translate-x-1 shadow-md'
+                    }`}
+                  />
+                </div>
+                <span className={`text-xs font-semibold transition-colors duration-200 ${
+                  editedProfile.preApproved ? 'text-emerald-700' : 'text-amber-700'
+                }`}>
+                  {editedProfile.preApproved ? 'Auto-approve' : 'Require review'}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Action Buttons */}
-          <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
-            <Button
-              onClick={handleSave}
-              disabled={isLoading}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              Save Changes
-            </Button>
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleSave}
+                disabled={isLoading || isDeleting}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Save Changes
+              </Button>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                disabled={isLoading || isDeleting}
+              >
+                Cancel
+              </Button>
+            </div>
+            
+            {/* Delete Button */}
             <Button
               variant="outline"
-              onClick={onClose}
-              disabled={isLoading}
+              onClick={handleDeleteArtist}
+              disabled={isLoading || isDeleting || artworkCount > 0}
+              className={`flex items-center gap-2 ${
+                artworkCount > 0
+                  ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                  : "text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+              }`}
             >
-              Cancel
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              {artworkCount > 0 ? "Cannot Delete (Has Artworks)" : "Delete Artist"}
             </Button>
           </div>
         </div>

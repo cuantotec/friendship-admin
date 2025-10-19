@@ -2,7 +2,7 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin } from "lucide-react";
-import { format } from "date-fns";
+import { formatEventDateTime } from "@/lib/dateUtils";
 import EventActions from "./event-actions";
 import type { EventListItem } from "@/types";
 
@@ -20,6 +20,7 @@ function getEventStatus(event: EventListItem): string {
   if (now > end) return "Past";
   return "Ongoing";
 }
+
 
 export default function EventsTable({ events }: EventsTableProps) {
   if (events.length === 0) {
@@ -113,13 +114,8 @@ export default function EventsTable({ events }: EventsTableProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {format(new Date(event.startDate), "MMM d, yyyy")}
+                        {formatEventDateTime(event)}
                       </div>
-                      {event.endDate && (
-                        <div className="text-xs text-gray-500">
-                          to {format(new Date(event.endDate), "MMM d, yyyy")}
-                        </div>
-                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm text-gray-600">

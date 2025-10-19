@@ -40,6 +40,8 @@ export const artistProfileSchema = z.object({
     .url("Profile image must be a valid URL")
     .optional()
     .or(z.literal('')),
+  
+  preApproved: z.boolean().optional(),
 });
 
 // Artist settings validation schema

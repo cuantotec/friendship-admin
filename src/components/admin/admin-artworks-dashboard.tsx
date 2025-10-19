@@ -15,9 +15,11 @@ import {
   Grid,
   List,
   ArrowRight,
-  ExternalLink
+  ExternalLink,
+  ArrowUpDown
 } from "lucide-react";
 import type { AdminStats, ArtworkListItem } from "@/types";
+import PopulateDisplayOrdersButton from "./populate-display-orders-button";
 
 interface AdminArtworksDashboardProps {
   stats: AdminStats;
@@ -275,7 +277,7 @@ export default function AdminArtworksDashboard({
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Link href="/admin/artworks">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
             <CardContent className="p-6">
@@ -317,6 +319,32 @@ export default function AdminArtworksDashboard({
             </CardContent>
           </Card>
         </Link>
+
+        <Link href="/admin/sorting">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Global Sorting</p>
+                  <p className="text-lg font-semibold text-gray-900">Drag & Drop</p>
+                </div>
+                <ArrowUpDown className="h-5 w-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardContent className="p-6">
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Database Setup</p>
+                <p className="text-xs text-gray-500">Initialize display orders</p>
+              </div>
+              <PopulateDisplayOrdersButton />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

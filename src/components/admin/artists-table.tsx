@@ -131,6 +131,7 @@ export default function ArtistsTable({ artists }: ArtistsTableProps) {
                       hasUser={artist.hasUser}
                       userId={artist.userId}
                       userEmail={artist.userEmail}
+                      artistEmail={artist.email}
                     />
                   </td>
                 </tr>

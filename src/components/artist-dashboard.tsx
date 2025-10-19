@@ -133,6 +133,13 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
 
   const handleDragStart = (e: React.DragEvent, artwork: ArtworkWithDisplayOrder) => {
     if (!isDragMode) return;
+    console.log("=== DRAG START ===");
+    console.log("Starting to drag artwork:", {
+      id: artwork.id,
+      title: artwork.title,
+      globalLocationId: artwork.globalLocationId,
+      artistLocationId: artwork.artistLocationId
+    });
     setDraggedArtwork(artwork);
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -157,32 +164,93 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
     if (!isDragMode || !draggedArtwork) return;
     e.preventDefault();
 
+    console.log("=== DRAG & DROP SWAP ===");
+    console.log("Dragged artwork:", {
+      id: draggedArtwork.id,
+      title: draggedArtwork.title,
+      globalLocationId: draggedArtwork.globalLocationId,
+      artistLocationId: draggedArtwork.artistLocationId
+    });
+    console.log("Target artwork:", {
+      id: targetArtwork.id,
+      title: targetArtwork.title,
+      globalLocationId: targetArtwork.globalLocationId,
+      artistLocationId: targetArtwork.artistLocationId
+    });
+
     const draggedIndex = artworksOrder.findIndex(a => a.id === draggedArtwork.id);
     const targetIndex = artworksOrder.findIndex(a => a.id === targetArtwork.id);
 
     if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
+      console.log("Invalid drop - same artwork or not found");
       setDraggedArtwork(null);
       return;
     }
 
-    // Create new order
-    const newOrder = [...artworksOrder];
-    const [draggedItem] = newOrder.splice(draggedIndex, 1);
-    newOrder.splice(targetIndex, 0, draggedItem);
+    // Swap both global and artist location IDs between the two artworks
+    const updatedOrder = [...artworksOrder];
+    const draggedItem = updatedOrder[draggedIndex];
+    const targetItem = updatedOrder[targetIndex];
 
-    // Update artist location IDs based on new order
-    const updatedOrder = newOrder.map((artwork, index) => ({
-      ...artwork,
-      artistLocationId: index + 1
-    }));
+    console.log("Before swap:");
+    console.log("Dragged item:", {
+      title: draggedItem.title,
+      globalLocationId: draggedItem.globalLocationId,
+      artistLocationId: draggedItem.artistLocationId
+    });
+    console.log("Target item:", {
+      title: targetItem.title,
+      globalLocationId: targetItem.globalLocationId,
+      artistLocationId: targetItem.artistLocationId
+    });
 
-    setArtworksOrder(updatedOrder);
+    // Swap the values
+    const tempGlobalId = draggedItem.globalLocationId;
+    const tempArtistId = draggedItem.artistLocationId;
+
+    updatedOrder[draggedIndex] = {
+      ...draggedItem,
+      globalLocationId: targetItem.globalLocationId,
+      artistLocationId: targetItem.artistLocationId
+    };
+
+    updatedOrder[targetIndex] = {
+      ...targetItem,
+      globalLocationId: tempGlobalId,
+      artistLocationId: tempArtistId
+    };
+
+    console.log("After swap:");
+    console.log("Dragged item (now):", {
+      title: updatedOrder[draggedIndex].title,
+      globalLocationId: updatedOrder[draggedIndex].globalLocationId,
+      artistLocationId: updatedOrder[draggedIndex].artistLocationId
+    });
+    console.log("Target item (now):", {
+      title: updatedOrder[targetIndex].title,
+      globalLocationId: updatedOrder[targetIndex].globalLocationId,
+      artistLocationId: updatedOrder[targetIndex].artistLocationId
+    });
+
+    // Sort the array by artistLocationId to visually reorder the artworks
+    const visuallyReordered = updatedOrder.sort((a, b) => (a.artistLocationId || 0) - (b.artistLocationId || 0));
+    
+    console.log("Visual reorder by artistLocationId:");
+    console.log("New visual order:", visuallyReordered.map(a => ({
+      title: a.title,
+      globalLocationId: a.globalLocationId,
+      artistLocationId: a.artistLocationId
+    })));
+
+    setArtworksOrder(visuallyReordered);
     setHasChanges(true);
     setDraggedArtwork(null);
     
     // Remove visual feedback
     const target = e.currentTarget as HTMLElement;
     target.classList.remove('ring-2', 'ring-purple-400', 'ring-opacity-50');
+    
+    console.log("=== DRAG & DROP SWAP COMPLETE ===");
   };
 
   const handleDragEnd = () => {
@@ -200,12 +268,21 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
 
     try {
       // Prepare the updates for the server action
-      const artworkUpdates = artworksOrder.map((artwork, index) => ({
+      // Update both artist and global display orders with the swapped values
+      const artworkUpdates = artworksOrder.map((artwork) => ({
         id: artwork.id,
-        artistLocationId: index + 1
+        artistLocationId: artwork.artistLocationId,
+        globalLocationId: artwork.globalLocationId
       }));
 
-      console.log("Saving artwork order:", artworkUpdates);
+      console.log("=== SAVING ARTWORK ORDER ===");
+      console.log("Current artworks order:", artworksOrder.map(a => ({
+        id: a.id,
+        title: a.title,
+        globalLocationId: a.globalLocationId,
+        artistLocationId: a.artistLocationId
+      })));
+      console.log("Artwork updates to send to server:", artworkUpdates);
 
       // Call the server action to update the database
       const result = await updateArtworkOrder(artworkUpdates);
@@ -662,6 +739,7 @@ export default function ArtistDashboard({ artist, artworks }: ArtistDashboardPro
         onArtworkDeleted={handleArtworkDeleted}
         artistId={artist?.id || 0}
         mode={isCreating ? 'create' : 'edit'}
+        isAdmin={false}
       />
 
       {/* Artist Profile Modal */}

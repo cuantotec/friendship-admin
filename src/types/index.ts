@@ -90,6 +90,19 @@ export interface ArtistSettingsFormData {
   isHidden?: boolean;
 }
 
+export interface EventRegistration {
+  id: number;
+  eventId: number;
+  fullName: string;
+  email: string;
+  phoneNumber?: string | null;
+  numberOfAttendees: number;
+  additionalInformation?: string | null;
+  registrationData: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ArtworkFormData {
   title: string;
   slug?: string;
@@ -168,6 +181,7 @@ export interface ArtworkListItem {
   year: string;
   medium: string;
   dimensions: string;
+  description: string;
   price: string; // Decimal from DB is string
   status: string;
   location: string;
@@ -175,6 +189,10 @@ export interface ArtworkListItem {
   originalImage: string | null;
   isVisible: boolean;
   featured: number | null;
+  widthCm: string | null; // Decimal from DB is string
+  heightCm: string | null; // Decimal from DB is string
+  depthCm: string | null; // Decimal from DB is string
+  approvalStatus: string; // pending, approved, rejected
   createdAt: string;
 }
 
@@ -189,6 +207,7 @@ export interface ArtistListItem {
   isVisible: boolean;
   isHidden: boolean | null;
   featured: boolean;
+  preApproved: boolean;
   createdAt: string;
   artworkCount: number;
   // Stack Auth user data
@@ -208,12 +227,26 @@ export interface EventListItem {
   endDate: string | null;
   location: string | null;
   address: string | null;
+  externalUrl: string | null;
+  registrationUrl: string | null;
+  registrationType: string;
   featuredImage: string | null;
   status: string | null;
   isCanceled: boolean;
   registrationEnabled: boolean;
   paymentEnabled: boolean;
   isRecurring: boolean;
+  isFreeEvent: boolean;
+  chabadPay: boolean;
+  recurringType: string | null;
+  recurringStartTime: string | null;
+  recurringStartAmpm: string | null;
+  recurringEndTime: string | null;
+  recurringEndAmpm: string | null;
+  featuredArtists: unknown;
+  parentEventId: number | null;
+  isRecurringInstance: boolean;
+  paymentTiers: unknown;
   createdAt: string;
 }
 

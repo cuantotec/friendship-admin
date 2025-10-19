@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { stackServerApp } from "@/stack/server";
-import Link from "next/link";
-import { Home, Palette, Users, Calendar, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileAdminNav } from "@/components/admin/mobile-admin-nav";
+import AdminNavigation from "@/components/admin/admin-navigation";
 
 export default async function AdminLayout({
   children,
@@ -25,16 +25,23 @@ export default async function AdminLayout({
   }
 
   const navigation = [
-    { name: "Overview", href: "/admin", icon: Home },
-    { name: "Artworks", href: "/admin/artworks", icon: Palette },
-    { name: "Artists", href: "/admin/artists", icon: Users },
-    { name: "Events", href: "/admin/events", icon: Calendar },
+    { name: "Overview", href: "/admin", icon: "Home" },
+    { name: "Artworks", href: "/admin/artworks", icon: "Palette" },
+    { name: "Artists", href: "/admin/artists", icon: "Users" },
+    { name: "Sorting", href: "/admin/sorting", icon: "ArrowUpDown" },
+    { name: "Events", href: "/admin/events", icon: "Calendar" },
   ];
+
+  // Extract only serializable user data
+  const userData = {
+    primaryEmail: user.primaryEmail,
+    displayName: user.displayName,
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Navigation */}
-      <MobileAdminNav navigation={navigation} user={user} />
+      <MobileAdminNav navigation={navigation} user={userData} />
       
       {/* Desktop Layout */}
       <div className="hidden lg:flex h-screen">
@@ -47,18 +54,7 @@ export default async function AdminLayout({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
-          {navigation.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="flex items-center gap-3 px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 hover:text-gray-900 transition-colors group"
-            >
-              <item.icon className="h-5 w-5 text-gray-500 group-hover:text-gray-700" />
-              <span className="font-medium">{item.name}</span>
-            </Link>
-          ))}
-        </nav>
+        <AdminNavigation navigation={navigation} />
 
         {/* User Info & Logout */}
         <div className="p-4 border-t border-gray-200">
