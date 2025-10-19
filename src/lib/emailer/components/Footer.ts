@@ -21,9 +21,9 @@ export const emailFooter = `
                         <img src="https://img.icons8.com/fluency/48/instagram-new.png" 
                              alt="Instagram" style="width: 40px; height: 40px; border-radius: 8px; transition: transform 0.2s ease;">
                     </a>
-                    <a href="https://www.tiktok.com/@friendshipcentergallery?utm_source=friendship_center_gallery&utm_medium=email&utm_campaign=email_notification" style="display: inline-block;">
-                        <img src="https://img.icons8.com/fluency/48/tiktok.png" 
-                             alt="TikTok" style="width: 40px; height: 40px; border-radius: 8px; transition: transform 0.2s ease;">
+                    <a href="https://x.com/friendshipcentergallery?utm_source=friendship_center_gallery&utm_medium=email&utm_campaign=email_notification" style="display: inline-block;">
+                        <img src="https://img.icons8.com/fluency/48/twitterx.png" 
+                             alt="X (Twitter)" style="width: 40px; height: 40px; border-radius: 8px; transition: transform 0.2s ease;">
                     </a>
                     <a href="https://www.youtube.com/@friendshipcentergallery?utm_source=friendship_center_gallery&utm_medium=email&utm_campaign=email_notification" style="display: inline-block;">
                         <img src="https://img.icons8.com/fluency/48/youtube-play.png" 

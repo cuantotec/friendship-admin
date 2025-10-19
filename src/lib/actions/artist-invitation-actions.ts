@@ -123,7 +123,11 @@ export async function inviteArtist(formData: FormData): Promise<ApiResponse<{ in
     });
 
     // Send magic link for auto-login
-    let setupUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/handler/setup?code=${invitationCode}`;
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://artist.friendshipcentergallery.org' 
+      : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
+    
+    let setupUrl = `${baseUrl}/handler/setup?code=${invitationCode}`;
     
     if (stackUserId) {
       try {
@@ -131,7 +135,7 @@ export async function inviteArtist(formData: FormData): Promise<ApiResponse<{ in
         const magicLinkResult = await stackServerApp.sendMagicLinkEmail(validatedData.email);
         if (magicLinkResult.status === "ok") {
           // Construct the magic link URL with the nonce
-          setupUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/handler/setup?code=${invitationCode}&magic=${magicLinkResult.data.nonce}`;
+          setupUrl = `${baseUrl}/handler/setup?code=${invitationCode}&magic=${magicLinkResult.data.nonce}`;
           console.log("Magic link generated:", setupUrl);
         } else {
           console.error("Failed to generate magic link:", magicLinkResult);

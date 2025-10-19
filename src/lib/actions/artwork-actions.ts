@@ -259,7 +259,10 @@ export async function createArtwork(
     // Send email notification to admins
     try {
       const artwork = result[0] as Artwork;
-      const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/artworks?tab=pending`;
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://artist.friendshipcentergallery.org' 
+        : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
+      const reviewUrl = `${baseUrl}/admin/artworks?tab=pending`;
       
       // Get artist name from database
       const artistResult = await db
