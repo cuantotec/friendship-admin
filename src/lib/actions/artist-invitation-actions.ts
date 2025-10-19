@@ -107,6 +107,10 @@ export async function inviteArtist(formData: FormData): Promise<ApiResponse<{ in
       }
     } catch (error) {
       console.error("Error creating Stack Auth user:", error);
+      console.error("Stack Auth error details:", {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       // Continue with invitation creation even if Stack Auth user creation fails
       // The user can still complete setup manually
     }
@@ -142,6 +146,10 @@ export async function inviteArtist(formData: FormData): Promise<ApiResponse<{ in
         }
       } catch (error) {
         console.error("Error generating magic link:", error);
+        console.error("Magic link error details:", {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        });
         // Fallback to regular invitation email
       }
     }

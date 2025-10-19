@@ -17,16 +17,24 @@ export function checkAuthEnv() {
     'RESEND_API_KEY'
   ];
 
+  const stackAuthRequired = [
+    'NEXT_PUBLIC_STACK_PROJECT_ID',
+    'NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY'
+  ];
+
   const missing = required.filter(key => !process.env[key]);
   const emailMissing = emailRequired.filter(key => !process.env[key]);
+  const stackAuthMissing = stackAuthRequired.filter(key => !process.env[key]);
   const warnings = optional.filter(key => !process.env[key]);
 
   return {
     isValid: missing.length === 0,
     missing,
     emailMissing,
+    stackAuthMissing,
     warnings,
-    hasEmailConfig: emailMissing.length === 0
+    hasEmailConfig: emailMissing.length === 0,
+    hasStackAuthConfig: stackAuthMissing.length === 0
   };
 }
 
@@ -39,6 +47,10 @@ export function getAuthConfigStatus() {
 
   if (env.emailMissing.length > 0) {
     throw new Error(`Missing email configuration: ${env.emailMissing.join(', ')}`);
+  }
+
+  if (env.stackAuthMissing.length > 0) {
+    throw new Error(`Missing Stack Auth configuration: ${env.stackAuthMissing.join(', ')}`);
   }
 
   return env;
