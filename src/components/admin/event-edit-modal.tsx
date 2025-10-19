@@ -223,14 +223,29 @@ export default function EventEditModal({
         const startTime = formatTimeForInput(formData.startTime);
         const endTime = formData.endTime ? formatTimeForInput(formData.endTime) : '12:00';
         
-        // Create EST datetime objects and convert to UTC ISO strings
-        // Parse the date and time as EST, then convert to UTC
+        // Create EST/EDT datetime objects and convert to UTC ISO strings
+        // Parse the date and time as Eastern Time, then convert to UTC
         const startDateStr = `${formData.startDate}T${startTime}:00`;
         const endDateStr = formData.endDate ? `${formData.endDate}T${endTime}:00` : null;
         
-        // Create dates assuming EST timezone, then convert to UTC
-        const startDateTime = new Date(startDateStr + '-05:00').toISOString(); // EST is UTC-5
-        const endDateTime = endDateStr ? new Date(endDateStr + '-05:00').toISOString() : null;
+        // Helper function to convert Eastern time to UTC
+        const convertEasternToUTC = (dateTimeStr: string): string => {
+          // Create a date object from the datetime string
+          const localDate = new Date(dateTimeStr);
+          
+          // Get the timezone offset for Eastern time on this specific date
+          const easternDate = new Date(localDate.toLocaleString("en-US", { timeZone: "America/New_York" }));
+          const utcDate = new Date(localDate.toLocaleString("en-US", { timeZone: "UTC" }));
+          
+          // Calculate the offset difference
+          const offsetDiff = easternDate.getTime() - utcDate.getTime();
+          
+          // Apply the offset to get the correct UTC time
+          return new Date(localDate.getTime() - offsetDiff).toISOString();
+        };
+        
+        const startDateTime = convertEasternToUTC(startDateStr);
+        const endDateTime = endDateStr ? convertEasternToUTC(endDateStr) : null;
         
         // Parse JSON fields
         let paymentTiers = null;
