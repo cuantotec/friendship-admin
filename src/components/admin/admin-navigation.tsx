@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Palette, Users, Calendar, ArrowUpDown } from "lucide-react";
+import { Home, Palette, Users, Calendar, ArrowUpDown, MessageSquare } from "lucide-react";
 
 // Helper function to get icon component by name
 function getIconComponent(iconName: string) {
@@ -12,6 +12,7 @@ function getIconComponent(iconName: string) {
     Users,
     Calendar,
     ArrowUpDown,
+    MessageSquare,
   };
   return iconMap[iconName as keyof typeof iconMap] || Home;
 }

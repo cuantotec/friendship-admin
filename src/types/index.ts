@@ -5,7 +5,7 @@
  * These types ensure consistency between frontend and backend.
  */
 
-import { Artist as DbArtist, Artwork as DbArtwork, Event as DbEvent } from "@/lib/schema";
+import { Artist as DbArtist, Artwork as DbArtwork, Event as DbEvent, inquiries } from "@/lib/schema";
 
 // ============================================================================
 // Database Types (from Drizzle schema)
@@ -268,4 +268,8 @@ export type WithOptional<T, K extends keyof T> = Omit<T, K> & { [P in K]?: T[P] 
  * Extract non-null type
  */
 export type NonNullable<T> = T extends null | undefined ? never : T;
+
+// Inquiry types
+export type Inquiry = typeof inquiries.$inferSelect;
+export type InquiryInsert = typeof inquiries.$inferInsert;
 
