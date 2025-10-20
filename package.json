@@ -27,7 +27,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-email/render": "^1.3.1",
-    "@stackframe/stack": "^2.8.41",
+    "@stackframe/stack": "^2.8.43",
     "@types/bcryptjs": "^2.4.6",
     "@types/pg": "^8.15.5",
     "bcryptjs": "^3.0.2",

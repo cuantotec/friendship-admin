@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   Palette, 
-  BarChart3, 
   DollarSign,
   Users,
   Grid,
@@ -64,13 +63,6 @@ export default function AdminArtworksDashboard({
       icon: Users, 
       color: "text-blue-600",
       bgColor: "bg-blue-50"
-    },
-    { 
-      name: "Analytics", 
-      value: "View Stats", 
-      icon: BarChart3, 
-      color: "text-orange-600",
-      bgColor: "bg-orange-50"
     },
   ];
 

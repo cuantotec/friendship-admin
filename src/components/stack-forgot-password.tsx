@@ -2,10 +2,14 @@
 
 import { ForgotPassword } from '@stackframe/stack';
 
-export const StackForgotPassword = () => {
+interface StackForgotPasswordProps {
+  fullPage?: boolean;
+}
+
+export const StackForgotPassword = ({ fullPage = false }: StackForgotPasswordProps) => {
   return (
     <div className="w-full">
-      <ForgotPassword />
+      <ForgotPassword fullPage={fullPage} />
     </div>
   );
 }

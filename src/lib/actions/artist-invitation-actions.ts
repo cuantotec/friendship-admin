@@ -131,35 +131,21 @@ export async function inviteArtist(formData: FormData): Promise<ApiResponse<{ in
       ? 'https://artist.friendshipcentergallery.org' 
       : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
     
-    let setupUrl = `${baseUrl}/handler/setup?code=${invitationCode}`;
+    const setupUrl = `${baseUrl}/handler/setup?code=${invitationCode}`;
     
+    // Note: Magic link generation removed - artists will use forgot password flow instead
     if (stackUserId) {
-      try {
-        // Generate a magic link for the user
-        const magicLinkResult = await stackServerApp.sendMagicLinkEmail(validatedData.email);
-        if (magicLinkResult.status === "ok") {
-          // Construct the magic link URL with the nonce
-          setupUrl = `${baseUrl}/handler/setup?code=${invitationCode}&magic=${magicLinkResult.data.nonce}`;
-          console.log("Magic link generated:", setupUrl);
-        } else {
-          console.error("Failed to generate magic link:", magicLinkResult);
-        }
-      } catch (error) {
-        console.error("Error generating magic link:", error);
-        console.error("Magic link error details:", {
-          message: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined
-        });
-        // Fallback to regular invitation email
-      }
+      console.log("Stack Auth user created for:", validatedData.email);
+      console.log("Artist should use 'Forgot Password' to set their password and log in");
     }
     
     const emailResult = await sendArtistInvitation({
       artistName: validatedData.name,
       artistEmail: validatedData.email,
-      invitationCode,
+      invitationCode, // Still pass it but it's optional now
       adminName,
-      setupUrl
+      setupUrl,
+      baseUrl
     });
 
     if (!emailResult.success) {
@@ -191,6 +177,99 @@ export async function inviteArtist(formData: FormData): Promise<ApiResponse<{ in
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to send invitation"
+    };
+  }
+}
+
+export async function createArtistFromAuth(data: {
+  bio: string;
+  specialty: string;
+  exhibitions?: string;
+  profileImage?: string | null;
+}): Promise<ApiResponse<{ artistId: number; userId: string }>> {
+  try {
+    console.log("=== CREATE ARTIST FROM AUTH ===");
+
+    // Get current user from Stack Auth
+    const user = await stackServerApp.getUser();
+    if (!user) {
+      return {
+        success: false,
+        error: "You must be logged in to complete this setup"
+      };
+    }
+
+    // Check if artist already exists
+    const existingArtist = await db
+      .select({ id: artists.id })
+      .from(artists)
+      .where(eq(artists.name, user.displayName || "Artist"))
+      .limit(1);
+
+    if (existingArtist.length > 0) {
+      return {
+        success: false,
+        error: "Artist profile already exists"
+      };
+    }
+
+    // Generate slug from name
+    const name = user.displayName || "Artist";
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    // Parse exhibitions if provided
+    let exhibitionsArray: string[] | null = null;
+    if (data.exhibitions) {
+      exhibitionsArray = data.exhibitions
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+    }
+
+    // Create artist record
+    const newArtist = await db.insert(artists).values({
+      name: name,
+      slug: slug,
+      bio: data.bio,
+      specialty: data.specialty,
+      exhibitions: exhibitionsArray,
+      profileImage: data.profileImage || null,
+      isVisible: true,
+      isHidden: false,
+      featured: false,
+    }).returning({ id: artists.id });
+
+    const artistId = newArtist[0].id;
+
+    // Update Stack Auth user with artist ID
+    await user.update({
+      serverMetadata: {
+        ...user.serverMetadata,
+        artistID: artistId,
+        role: "artist"
+      }
+    });
+
+    console.log("Artist created successfully:", artistId);
+
+    // Revalidate relevant pages
+    revalidatePath("/");
+    revalidatePath("/admin/artists");
+    revalidatePath("/admin");
+
+    await revalidationPatterns.artists();
+
+    return {
+      success: true,
+      data: { artistId, userId: user.id },
+      message: "Artist profile created successfully"
+    };
+
+  } catch (error) {
+    console.error("Error creating artist from auth:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create artist profile"
     };
   }
 }

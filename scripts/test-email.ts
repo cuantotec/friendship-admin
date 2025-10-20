@@ -55,7 +55,8 @@ async function runTests() {
     artistEmail: TEST_EMAIL,
     invitationCode: 'TEST-INVITE-123',
     adminName: 'Gallery Admin',
-    setupUrl: 'http://localhost:3002/setup?code=TEST-INVITE-123'
+    setupUrl: 'http://localhost:3002/setup?code=TEST-INVITE-123',
+    baseUrl: 'http://localhost:3002'
   });
 
   if (invitationResult.success) {

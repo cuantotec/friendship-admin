@@ -32,9 +32,10 @@ export interface EmailResult {
 export interface ArtistInvitationData {
   artistName: string;
   artistEmail: string;
-  invitationCode: string;
+  invitationCode?: string; // Made optional since we're not using it anymore
   adminName: string;
   setupUrl: string;
+  baseUrl: string; // Added for login page link
 }
 
 export interface ArtworkApprovalData {

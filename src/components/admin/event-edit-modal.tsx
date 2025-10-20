@@ -42,12 +42,17 @@ function extractTimeFromISO(isoString: string): string {
     // Parse the ISO string and convert to EST
     const date = new Date(isoString);
     
-    // Convert to EST timezone
-    const estDate = new Date(date.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    // Use Intl.DateTimeFormat to get the Eastern time components
+    const easternFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
     
-    // Format as HH:MM in EST
-    const hours = estDate.getHours().toString().padStart(2, '0');
-    const minutes = estDate.getMinutes().toString().padStart(2, '0');
+    const parts = easternFormatter.formatToParts(date);
+    const hours = parts.find(part => part.type === 'hour')?.value || '00';
+    const minutes = parts.find(part => part.type === 'minute')?.value || '00';
     
     return `${hours}:${minutes}`;
   } catch {
@@ -228,21 +233,8 @@ export default function EventEditModal({
         const startDateStr = `${formData.startDate}T${startTime}:00`;
         const endDateStr = formData.endDate ? `${formData.endDate}T${endTime}:00` : null;
         
-        // Helper function to convert Eastern time to UTC
-        const convertEasternToUTC = (dateTimeStr: string): string => {
-          // Create a date object from the datetime string
-          const localDate = new Date(dateTimeStr);
-          
-          // Get the timezone offset for Eastern time on this specific date
-          const easternDate = new Date(localDate.toLocaleString("en-US", { timeZone: "America/New_York" }));
-          const utcDate = new Date(localDate.toLocaleString("en-US", { timeZone: "UTC" }));
-          
-          // Calculate the offset difference
-          const offsetDiff = easternDate.getTime() - utcDate.getTime();
-          
-          // Apply the offset to get the correct UTC time
-          return new Date(localDate.getTime() - offsetDiff).toISOString();
-        };
+        // Import the unified time conversion function
+        const { convertEasternToUTC } = await import('@/lib/dateUtils');
         
         const startDateTime = convertEasternToUTC(startDateStr);
         const endDateTime = endDateStr ? convertEasternToUTC(endDateStr) : null;

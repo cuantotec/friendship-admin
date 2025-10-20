@@ -19,7 +19,8 @@ export function checkAuthEnv() {
 
   const stackAuthRequired = [
     'NEXT_PUBLIC_STACK_PROJECT_ID',
-    'NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY'
+    'NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY',
+    'SECRET_SERVER_KEY'
   ];
 
   const missing = required.filter(key => !process.env[key]);

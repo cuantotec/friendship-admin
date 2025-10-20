@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import {
   toggleArtistVisibility,
   deleteArtistAdmin,
+  deleteInvitationAdmin,
   sendPasswordResetEmail,
   updateUserStatus,
 } from "@/lib/actions/admin-actions";
@@ -45,23 +46,32 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
     });
   };
 
-  const handleDelete = (artistId: number, artistName: string, artworkCount: number) => {
-    if (artworkCount > 0) {
+  const handleDelete = (artistId: number, artistName: string, artworkCount: number, isInvitation: boolean = false) => {
+    if (!isInvitation && artworkCount > 0) {
       toast.error("Cannot delete artist with existing artworks");
       return;
     }
 
-    if (!confirm(`Are you sure you want to delete artist "${artistName}"?`)) {
+    const itemType = isInvitation ? "invitation" : "artist";
+    if (!confirm(`Are you sure you want to delete ${itemType} "${artistName}"?`)) {
       return;
     }
 
     startTransition(async () => {
-      const result = await deleteArtistAdmin(artistId);
+      let result;
+      if (isInvitation) {
+        // For invitations, use the positive ID (convert from negative)
+        const invitationId = Math.abs(artistId);
+        result = await deleteInvitationAdmin(invitationId);
+      } else {
+        result = await deleteArtistAdmin(artistId);
+      }
+      
       if (result.success) {
-        toast.success("Artist deleted successfully");
+        toast.success(`${itemType.charAt(0).toUpperCase() + itemType.slice(1)} deleted successfully`);
         router.refresh();
       } else {
-        toast.error(result.error || "Failed to delete artist");
+        toast.error(result.error || `Failed to delete ${itemType}`);
       }
     });
   };
@@ -132,7 +142,9 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
       {/* Mobile-first grid: 1 column on mobile, 2 on tablet, 3 on desktop */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {artists.map((artist) => (
-          <Card key={artist.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+          <Card key={artist.id} className={`overflow-hidden hover:shadow-lg transition-shadow ${
+            artist.isInvitation ? 'border-orange-200 bg-orange-50/30' : ''
+          }`}>
             <CardContent className="p-4">
               {/* Artist Header with Image and Basic Info */}
               <div className="flex items-start gap-3 mb-3">
@@ -147,7 +159,11 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
                     />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center">
-                      <Users className="h-6 w-6 text-gray-400" />
+                      {artist.isInvitation ? (
+                        <UserPlus className="h-6 w-6 text-orange-500" />
+                      ) : (
+                        <Users className="h-6 w-6 text-gray-400" />
+                      )}
                     </div>
                   )}
                 </div>
@@ -157,18 +173,33 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
                     <div className="min-w-0 flex-1">
                       <h3 className="text-lg font-semibold text-gray-900 truncate">
                         {artist.name}
+                        {artist.isInvitation && (
+                          <span className="ml-2 text-sm text-orange-600 font-normal">
+                            (Pending Invitation)
+                          </span>
+                        )}
                       </h3>
                       {artist.specialty && (
                         <p className="text-sm text-gray-600 truncate">
                           {artist.specialty}
                         </p>
                       )}
+                      {artist.isInvitation && artist.invitedBy && (
+                        <p className="text-xs text-gray-500 truncate">
+                          Invited by: {artist.invitedBy}
+                        </p>
+                      )}
                     </div>
                     
-                    {/* Featured Badge */}
-                    {artist.featured && (
+                    {/* Featured Badge or Invitation Badge */}
+                    {artist.isInvitation ? (
+                      <Badge variant="outline" className="text-orange-600 border-orange-300">
+                        <UserPlus className="h-3 w-3 mr-1" />
+                        Invitation
+                      </Badge>
+                    ) : artist.featured ? (
                       <Star className="h-5 w-5 text-yellow-500 flex-shrink-0" />
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -216,127 +247,165 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
 
               {/* Action Buttons */}
               <div className="space-y-2">
-                {/* Primary Actions */}
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Convert ArtistListItem to Artist for the modal
-                      const artistData: Artist = {
-                        id: artist.id,
-                        name: artist.name,
-                        slug: artist.slug,
-                        bio: artist.bio,
-                        profileImage: artist.profileImage,
-                        specialty: artist.specialty,
-                        exhibitions: null, // Will be loaded from database
-                        isVisible: artist.isVisible,
-                        isHidden: artist.isHidden ?? false,
-                        featured: artist.featured,
-                        createdAt: new Date(artist.createdAt)
-                      };
-                      setSelectedArtist(artistData);
-                      setShowProfileModal(true);
-                    }}
-                    className="flex-1"
-                  >
-                    Edit Profile
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Convert ArtistListItem to Artist for the modal
-                      const artistData: Artist = {
-                        id: artist.id,
-                        name: artist.name,
-                        slug: artist.slug,
-                        bio: artist.bio,
-                        profileImage: artist.profileImage,
-                        specialty: artist.specialty,
-                        exhibitions: null, // Will be loaded from database
-                        isVisible: artist.isVisible,
-                        isHidden: artist.isHidden ?? false,
-                        featured: artist.featured,
-                        createdAt: new Date(artist.createdAt)
-                      };
-                      setSelectedArtist(artistData);
-                      setShowSettingsModal(true);
-                    }}
-                    className="flex-1"
-                  >
-                    Settings
-                  </Button>
-                </div>
-
-                {/* User Management Actions */}
-                {artist.hasUser && artist.userId && artist.userEmail && (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleResetPassword(artist.userId!, artist.userEmail!)}
-                      disabled={isPending}
-                      className="flex-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                    >
-                      <KeyRound className="h-4 w-4 mr-1" />
-                      Reset Password
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleBlockUser(artist.userId!)}
-                      disabled={isPending}
-                      className="flex-1 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                    >
-                      <ShieldAlert className="h-4 w-4 mr-1" />
-                      Block User
-                    </Button>
+                {artist.isInvitation ? (
+                  /* Invitation Actions */
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-600 bg-orange-50 p-2 rounded border border-orange-200">
+                      <p className="font-medium text-orange-800">Invitation Details:</p>
+                      <p className="text-xs">Code: {artist.invitationCode}</p>
+                      <p className="text-xs">Status: Pending</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Copy invitation code to clipboard
+                          navigator.clipboard.writeText(artist.invitationCode || '');
+                          toast.success('Invitation code copied to clipboard');
+                        }}
+                        className="flex-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <KeyRound className="h-4 w-4 mr-1" />
+                        Copy Code
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(artist.id, artist.name, artist.artworkCount, true)}
+                        disabled={isPending}
+                        className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
                   </div>
-                )}
+                ) : (
+                  /* Regular Artist Actions */
+                  <>
+                    {/* Primary Actions */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Convert ArtistListItem to Artist for the modal
+                          const artistData: Artist = {
+                            id: artist.id,
+                            name: artist.name,
+                            slug: artist.slug,
+                            bio: artist.bio,
+                            profileImage: artist.profileImage,
+                            specialty: artist.specialty,
+                            exhibitions: null, // Will be loaded from database
+                            isVisible: artist.isVisible,
+                            isHidden: artist.isHidden ?? false,
+                            featured: artist.featured,
+                            createdAt: new Date(artist.createdAt)
+                          };
+                          setSelectedArtist(artistData);
+                          setShowProfileModal(true);
+                        }}
+                        className="flex-1"
+                      >
+                        Edit Profile
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Convert ArtistListItem to Artist for the modal
+                          const artistData: Artist = {
+                            id: artist.id,
+                            name: artist.name,
+                            slug: artist.slug,
+                            bio: artist.bio,
+                            profileImage: artist.profileImage,
+                            specialty: artist.specialty,
+                            exhibitions: null, // Will be loaded from database
+                            isVisible: artist.isVisible,
+                            isHidden: artist.isHidden ?? false,
+                            featured: artist.featured,
+                            createdAt: new Date(artist.createdAt)
+                          };
+                          setSelectedArtist(artistData);
+                          setShowSettingsModal(true);
+                        }}
+                        className="flex-1"
+                      >
+                        Settings
+                      </Button>
+                    </div>
+                    {/* User Management Actions */}
+                    {artist.hasUser && artist.userId && artist.userEmail && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResetPassword(artist.userId!, artist.userEmail!)}
+                          disabled={isPending}
+                          className="flex-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          <KeyRound className="h-4 w-4 mr-1" />
+                          Reset Password
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleBlockUser(artist.userId!)}
+                          disabled={isPending}
+                          className="flex-1 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                        >
+                          <ShieldAlert className="h-4 w-4 mr-1" />
+                          Block User
+                        </Button>
+                      </div>
+                    )}
 
-                {/* Invite Artist for users without accounts */}
-                {!artist.hasUser && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleInviteArtist(artist.name, artist.email)}
-                    disabled={isPending}
-                    className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                  >
-                    <UserPlus className="h-4 w-4 mr-1" />
-                    Invite Artist
-                  </Button>
-                )}
+                    {/* Invite Artist for users without accounts */}
+                    {!artist.hasUser && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleInviteArtist(artist.name, artist.email)}
+                        disabled={isPending}
+                        className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        Invite Artist
+                      </Button>
+                    )}
 
-                {/* Visibility and Delete Actions */}
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleToggleVisibility(artist.id)}
-                    disabled={isPending}
-                    className="flex-1"
-                  >
-                    {artist.isVisible ? <Eye className="h-4 w-4 mr-1" /> : <EyeOff className="h-4 w-4 mr-1" />}
-                    {artist.isVisible ? 'Hide' : 'Show'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(artist.id, artist.name, artist.artworkCount)}
-                    disabled={isPending || artist.artworkCount > 0}
-                    className={`flex-1 ${
-                      artist.artworkCount > 0 
-                        ? 'text-gray-400 cursor-not-allowed' 
-                        : 'text-red-600 hover:text-red-700 hover:bg-red-50'
-                    }`}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
-                  </Button>
-                </div>
+                    {/* Visibility and Delete Actions */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleToggleVisibility(artist.id)}
+                        disabled={isPending}
+                        className="flex-1"
+                      >
+                        {artist.isVisible ? <Eye className="h-4 w-4 mr-1" /> : <EyeOff className="h-4 w-4 mr-1" />}
+                        {artist.isVisible ? 'Hide' : 'Show'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(artist.id, artist.name, artist.artworkCount, false)}
+                        disabled={isPending || artist.artworkCount > 0}
+                        className={`flex-1 ${
+                          artist.artworkCount > 0 
+                            ? 'text-gray-400 cursor-not-allowed' 
+                            : 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                        }`}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -22,26 +22,31 @@ ${commonEmailStyles}
       </p>
       
       <div class="highlight-box">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span class="highlight-label">Your Invitation Code:</span>
-          <span class="highlight-value">${data.invitationCode}</span>
+        <div style="text-align: center; padding: 20px;">
+          <h3 style="margin-top: 0; color: #1f2937; margin-bottom: 15px;">🎯 Your Account is Ready!</h3>
+          <p style="margin: 0; color: #374151; font-size: 16px;">
+            We've created your artist account using <strong>${data.artistEmail}</strong>
+          </p>
         </div>
       </div>
       
       <div class="info-box">
-        <h3 style="margin-top: 0; color: #1f2937;">What's Next?</h3>
-        <ul style="margin: 10px 0; padding-left: 20px; color: #374151;">
-          <li>Click the button below to set up your artist account</li>
-          <li>Create your artist profile with bio and specialty</li>
-          <li>Upload your first artwork to the gallery</li>
-          <li>Start connecting with art collectors and enthusiasts</li>
-        </ul>
+        <h3 style="margin-top: 0; color: #1f2937;">How to Get Started:</h3>
+        <ol style="margin: 10px 0; padding-left: 20px; color: #374151;">
+          <li><strong>Set Your Password:</strong> Click "Forgot Password" on the login page</li>
+          <li><strong>Check Your Email:</strong> Use the password reset link sent to ${data.artistEmail}</li>
+          <li><strong>Create Your Profile:</strong> Set up your artist bio and specialty</li>
+          <li><strong>Upload Artwork:</strong> Add your first pieces to the gallery</li>
+        </ol>
       </div>
       
       <div class="cta-section">
-        <a href="${data.setupUrl}" class="cta-button">
-          Set Up Your Artist Account
+        <a href="${data.baseUrl}/login" class="cta-button">
+          Go to Login Page
         </a>
+        <p style="text-align: center; margin-top: 15px; color: #6b7280; font-size: 14px;">
+          Then click "Forgot Password" to set your password
+        </p>
       </div>
       
       <div class="success-box">

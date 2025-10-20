@@ -6,22 +6,79 @@ import { format } from "date-fns";
  * @returns Date object in Eastern Time
  */
 export function convertToEasternTime(utcTimestamp: string | Date): Date {
-  const date = new Date(utcTimestamp);
+  const utcDate = new Date(utcTimestamp);
   
-  // Get the Eastern time offset for the given date
-  const easternTime = new Date(date.toLocaleString("en-US", { 
-    timeZone: "America/New_York" 
-  }));
+  // Use Intl.DateTimeFormat to get the Eastern time components
+  const easternFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
   
-  // Calculate the timezone offset difference
-  const utcTime = new Date(date.toLocaleString("en-US", { 
-    timeZone: "UTC" 
-  }));
+  const parts = easternFormatter.formatToParts(utcDate);
+  const year = parseInt(parts.find(part => part.type === 'year')?.value || '0');
+  const month = parseInt(parts.find(part => part.type === 'month')?.value || '0') - 1; // Month is 0-indexed
+  const day = parseInt(parts.find(part => part.type === 'day')?.value || '0');
+  const hour = parseInt(parts.find(part => part.type === 'hour')?.value || '0');
+  const minute = parseInt(parts.find(part => part.type === 'minute')?.value || '0');
+  const second = parseInt(parts.find(part => part.type === 'second')?.value || '0');
   
-  const offsetDiff = easternTime.getTime() - utcTime.getTime();
+  // Create a new Date object with the Eastern time components
+  return new Date(year, month, day, hour, minute, second);
+}
+
+/**
+ * Converts Eastern Time (EST/EDT) to UTC
+ * @param easternTimeStr - Date string in format "YYYY-MM-DDTHH:MM:SS" representing Eastern time
+ * @returns ISO string in UTC
+ */
+export function convertEasternToUTC(easternTimeStr: string): string {
+  // Parse the date string components
+  const [datePart, timePart] = easternTimeStr.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hour, minute, second = 0] = timePart.split(':').map(Number);
   
-  // Apply the offset to get the correct Eastern time
-  return new Date(date.getTime() + offsetDiff);
+  // Create a date object representing the Eastern time
+  const easternDate = new Date(year, month - 1, day, hour, minute, second);
+  
+  // Convert to UTC using native JavaScript timezone handling
+  return easternDate.toISOString();
+}
+
+/**
+ * Converts UTC to Eastern Time string
+ * @param utcTimestamp - ISO string or Date object in UTC
+ * @returns Date string in format "YYYY-MM-DDTHH:MM:SS" representing Eastern time
+ */
+export function convertUTCToEasternString(utcTimestamp: string | Date): string {
+  const utcDate = new Date(utcTimestamp);
+  
+  // Use Intl.DateTimeFormat to get the Eastern time components
+  const easternFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  
+  const parts = easternFormatter.formatToParts(utcDate);
+  const year = parts.find(part => part.type === 'year')?.value || '0';
+  const month = parts.find(part => part.type === 'month')?.value || '0';
+  const day = parts.find(part => part.type === 'day')?.value || '0';
+  const hour = parts.find(part => part.type === 'hour')?.value || '0';
+  const minute = parts.find(part => part.type === 'minute')?.value || '0';
+  const second = parts.find(part => part.type === 'second')?.value || '0';
+  
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
 }
 
 /**

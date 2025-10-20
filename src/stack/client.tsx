@@ -6,6 +6,8 @@ export const stackClientApp = new StackClientApp({
   publishableClientKey: process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY,
   urls: {
     signIn: '/login',
-    passwordReset: '/forgot-password',
+    passwordReset: '/reset-password',
+    home: '/',
+    afterSignOut: '/login',
   },
 });

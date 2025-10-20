@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { artworks, artists, events } from "@/lib/schema";
+import { artworks, artists, events, artistInvitations } from "@/lib/schema";
 import { eq, sql, desc, and } from "drizzle-orm";
 import { stackServerApp } from "@/stack/server";
 import { redirect } from "next/navigation";
@@ -168,7 +168,8 @@ export async function getAllArtists(): Promise<ArtistListItem[]> {
   await requireAdmin();
 
   try {
-    const result = await db
+    // Get all existing artists
+    const artistsResult = await db
       .select({
         id: artists.id,
         name: artists.name,
@@ -179,7 +180,6 @@ export async function getAllArtists(): Promise<ArtistListItem[]> {
         isVisible: artists.isVisible,
         isHidden: artists.isHidden,
         featured: artists.featured,
-        // preApproved: sql<boolean>`pre_approved`, // Column doesn't exist in database yet
         createdAt: artists.createdAt,
         artworkCount: sql<number>`(
           SELECT COUNT(*)::int 
@@ -189,6 +189,23 @@ export async function getAllArtists(): Promise<ArtistListItem[]> {
       })
       .from(artists)
       .orderBy(desc(artists.createdAt));
+
+    // Get all pending invitations
+    const invitationsResult = await db
+      .select({
+        id: artistInvitations.id,
+        name: artistInvitations.name,
+        email: artistInvitations.email,
+        specialty: artistInvitations.specialty,
+        code: artistInvitations.code,
+        invitedBy: artistInvitations.invitedBy,
+        createdAt: artistInvitations.createdAt,
+        usedAt: artistInvitations.usedAt,
+        stackUserId: artistInvitations.stackUserId,
+      })
+      .from(artistInvitations)
+      .where(sql`${artistInvitations.usedAt} IS NULL`) // Only pending invitations
+      .orderBy(desc(artistInvitations.createdAt));
 
     // Fetch all Stack Auth users
     let stackUsers: Array<{ id: string; primaryEmail: string | null; serverMetadata: Record<string, unknown> | null }> = [];
@@ -203,8 +220,8 @@ export async function getAllArtists(): Promise<ArtistListItem[]> {
       console.error("Error fetching Stack Auth users:", error);
     }
 
-    // Map artists with their Stack Auth user data
-    return result.map(row => {
+    // Map existing artists with their Stack Auth user data
+    const mappedArtists = artistsResult.map(row => {
       // Find Stack Auth user by matching artistID in serverMetadata
       const stackUser = stackUsers.find(u => {
         const artistId = u.serverMetadata?.artistID;
@@ -216,13 +233,49 @@ export async function getAllArtists(): Promise<ArtistListItem[]> {
         email: stackUser?.primaryEmail || null,
         createdAt: row.createdAt.toISOString(),
         preApproved: false, // Default value since column doesn't exist yet
-        // Stack Auth user data
         hasUser: !!stackUser,
         userId: stackUser?.id || null,
         userEmail: stackUser?.primaryEmail || null,
         userPrimaryEmail: stackUser?.primaryEmail || null,
+        isInvitation: false,
+        invitationCode: null,
+        invitedBy: null,
       };
-    }) as ArtistListItem[];
+    });
+
+    // Map pending invitations as "artists" for display
+    const mappedInvitations = invitationsResult.map(invitation => {
+      // Check if there's a Stack Auth user for this invitation
+      const stackUser = stackUsers.find(u => u.id === invitation.stackUserId);
+
+      return {
+        id: -invitation.id, // Use negative ID to distinguish from real artists
+        name: invitation.name,
+        slug: `invitation-${invitation.id}`, // Temporary slug
+        bio: null,
+        profileImage: null,
+        specialty: invitation.specialty,
+        isVisible: false,
+        isHidden: true,
+        featured: false,
+        createdAt: invitation.createdAt.toISOString(),
+        artworkCount: 0,
+        email: invitation.email,
+        userId: stackUser?.id || null,
+        userEmail: stackUser?.primaryEmail || invitation.email,
+        userPrimaryEmail: stackUser?.primaryEmail || invitation.email,
+        hasUser: !!stackUser,
+        preApproved: false,
+        isInvitation: true,
+        invitationCode: invitation.code,
+        invitedBy: invitation.invitedBy,
+      };
+    });
+
+    // Combine and sort by creation date
+    const allItems = [...mappedArtists, ...mappedInvitations];
+    return allItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) as ArtistListItem[];
+
   } catch (error) {
     console.error("Error fetching artists:", error);
     throw new Error("Failed to fetch artists");
@@ -482,6 +535,22 @@ export async function deleteArtistAdmin(
   await requireAdmin();
 
   try {
+    // Get artist details first
+    const artist = await db
+      .select()
+      .from(artists)
+      .where(eq(artists.id, artistId))
+      .limit(1);
+
+    if (artist.length === 0) {
+      return {
+        success: false,
+        error: "Artist not found",
+      };
+    }
+
+    const artistData = artist[0];
+
     // Check if artist has artworks
     const artistArtworks = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -495,6 +564,46 @@ export async function deleteArtistAdmin(
       };
     }
 
+    // Note: Stack Auth user deletion is not available in the current SDK
+    // The user will remain in Stack Auth but will be orphaned
+    // This is acceptable as the database cleanup is the primary concern
+    try {
+      const stackUsers = await stackServerApp.listUsers();
+      const stackUser = stackUsers.find(u => {
+        const userArtistId = u.serverMetadata?.artistID;
+        return userArtistId && parseInt(String(userArtistId)) === artistId;
+      });
+
+      if (stackUser) {
+        console.log(`Stack Auth user ${stackUser.id} will remain (SDK doesn't support deletion)`);
+        console.log(`Artist database record will be deleted, but Stack Auth user remains orphaned`);
+      }
+    } catch (error) {
+      console.error("Error checking Stack Auth user:", error);
+      // Continue with artist deletion even if Stack Auth user check fails
+    }
+
+    // Delete artist invitations associated with this artist
+    try {
+      // Find invitations by email (if we have the artist's email from Stack Auth)
+      const stackUsers = await stackServerApp.listUsers();
+      const stackUser = stackUsers.find(u => {
+        const userArtistId = u.serverMetadata?.artistID;
+        return userArtistId && parseInt(String(userArtistId)) === artistId;
+      });
+
+      if (stackUser?.primaryEmail) {
+        await db
+          .delete(artistInvitations)
+          .where(eq(artistInvitations.email, stackUser.primaryEmail));
+        console.log(`Deleted invitations for email: ${stackUser.primaryEmail}`);
+      }
+    } catch (error) {
+      console.error("Error deleting artist invitations:", error);
+      // Continue with artist deletion even if invitation deletion fails
+    }
+
+    // Delete the artist record
     await db.delete(artists).where(eq(artists.id, artistId));
 
     revalidatePath("/");
@@ -513,6 +622,55 @@ export async function deleteArtistAdmin(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to delete artist",
+    };
+  }
+}
+
+// Delete invitation (admin only)
+export async function deleteInvitationAdmin(
+  invitationId: number
+): Promise<ApiResponse<{ deleted: boolean }>> {
+  await requireAdmin();
+
+  try {
+    // Get invitation details first
+    const invitation = await db
+      .select()
+      .from(artistInvitations)
+      .where(eq(artistInvitations.id, invitationId))
+      .limit(1);
+
+    if (invitation.length === 0) {
+      return {
+        success: false,
+        error: "Invitation not found",
+      };
+    }
+
+    const invitationData = invitation[0];
+
+    // Note: Stack Auth user deletion is not available in the current SDK
+    // The user will remain in Stack Auth but will be orphaned
+    if (invitationData.stackUserId) {
+      console.log(`Stack Auth user ${invitationData.stackUserId} will remain (SDK doesn't support deletion)`);
+      console.log(`Invitation database record will be deleted, but Stack Auth user remains orphaned`);
+    }
+
+    // Delete the invitation record
+    await db.delete(artistInvitations).where(eq(artistInvitations.id, invitationId));
+
+    revalidatePath("/admin/artists");
+    revalidatePath("/admin");
+
+    return {
+      success: true,
+      data: { deleted: true },
+    };
+  } catch (error) {
+    console.error("Error deleting invitation:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete invitation",
     };
   }
 }
@@ -743,6 +901,103 @@ export async function approveAllPendingArtworks(
 }
 
 // Update event (admin only)
+export async function createEvent(
+  eventData: {
+    title: string;
+    description: string;
+    eventType: string;
+    slug: string;
+    startDate: string;
+    endDate?: string | null;
+    location?: string | null;
+    address?: string | null;
+    externalUrl?: string | null;
+    registrationUrl?: string | null;
+    registrationType: string;
+    status: string;
+    featuredImage?: string | null;
+    registrationEnabled: boolean;
+    paymentEnabled: boolean;
+    isCanceled: boolean;
+    isRecurring: boolean;
+    isFreeEvent: boolean;
+    chabadPay?: boolean;
+    recurringType?: string | null;
+    recurringStartTime?: string | null;
+    recurringStartAmpm?: string | null;
+    recurringEndTime?: string | null;
+    recurringEndAmpm?: string | null;
+    featuredArtists?: unknown;
+    parentEventId?: number | null;
+    isRecurringInstance?: boolean;
+    paymentTiers?: unknown;
+  }
+): Promise<ApiResponse<{ eventId: number }>> {
+  await requireAdmin();
+
+  try {
+    const result = await db
+      .insert(events)
+      .values({
+        title: eventData.title,
+        description: eventData.description,
+        eventType: eventData.eventType,
+        slug: eventData.slug,
+        startDate: new Date(eventData.startDate),
+        endDate: eventData.endDate ? new Date(eventData.endDate) : null,
+        location: eventData.location || "The Friendship Center Gallery", // Hardcoded default location
+        address: eventData.address,
+        externalUrl: eventData.externalUrl,
+        registrationUrl: eventData.registrationUrl,
+        registrationType: eventData.registrationType,
+        status: eventData.status,
+        featuredImage: eventData.featuredImage,
+        registrationEnabled: eventData.registrationEnabled,
+        paymentEnabled: eventData.paymentEnabled,
+        is_canceled: eventData.isCanceled,
+        isRecurring: eventData.isRecurring,
+        isFreeEvent: eventData.isFreeEvent,
+        chabad_pay: eventData.chabadPay ?? true,
+        recurringType: eventData.recurringType,
+        recurringStartTime: eventData.recurringStartTime,
+        recurringStartAmPm: eventData.recurringStartAmpm,
+        recurringEndTime: eventData.recurringEndTime,
+        recurringEndAmPm: eventData.recurringEndAmpm,
+        featuredArtists: eventData.featuredArtists as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        parentEventId: eventData.parentEventId,
+        isRecurringInstance: eventData.isRecurringInstance ?? false,
+        paymentTiers: eventData.paymentTiers as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+      })
+      .returning({ id: events.id });
+
+    if (result.length === 0) {
+      return {
+        success: false,
+        error: "Failed to create event"
+      };
+    }
+
+    const eventId = result[0].id;
+
+    // Revalidate relevant pages
+    revalidatePath("/admin/events");
+    revalidatePath("/admin");
+    await triggerMainSiteRevalidation(() => revalidationPatterns.events());
+
+    return {
+      success: true,
+      data: { eventId },
+      message: "Event created successfully"
+    };
+  } catch (error) {
+    console.error("Error creating event:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create event"
+    };
+  }
+}
+
 export async function updateEvent(
   eventId: number,
   updates: {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Calendar, Clock, MapPin } from "lucide-react";
 import type { EventListItem } from "@/types";
+import EventCreateModal from "./event-create-modal";
 
 interface EventsPageClientProps {
   events: EventListItem[];
@@ -16,44 +17,10 @@ interface EventsPageClientProps {
 }
 
 export default function EventsPageClient({ events, stats }: EventsPageClientProps) {
-  const [showAddMessage, setShowAddMessage] = useState(false);
-
-  useEffect(() => {
-    // Check if we're on the add page
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('add') === 'true') {
-      setShowAddMessage(true);
-      // Remove the add parameter from URL
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('add');
-      window.history.replaceState({}, '', newUrl.toString());
-    }
-  }, []);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   return (
     <div className="space-y-6">
-      {/* Add Event Message */}
-      {showAddMessage && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-blue-600" />
-            <div>
-              <h3 className="text-sm font-medium text-blue-800">Event Creation</h3>
-              <p className="text-sm text-blue-700">
-                Event creation functionality is coming soon. For now, you can manage existing events by clicking the edit button on any event card.
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAddMessage(false)}
-              className="ml-auto text-blue-600 hover:text-blue-800"
-            >
-              ×
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Header with Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -65,7 +32,7 @@ export default function EventsPageClient({ events, stats }: EventsPageClientProp
         </div>
         
         <Button
-          onClick={() => window.location.href = '/admin/events?add=true'}
+          onClick={() => setShowCreateModal(true)}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
@@ -142,6 +109,12 @@ export default function EventsPageClient({ events, stats }: EventsPageClientProp
       </div>
 
       {/* Events will be rendered by the server component */}
+      
+      {/* Create Event Modal */}
+      <EventCreateModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
     </div>
   );
 }

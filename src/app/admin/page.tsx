@@ -29,12 +29,10 @@ export default async function AdminDashboardPage() {
   const featuredArtworks = allArtworks.filter(artwork => artwork.featured !== null && artwork.featured > 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <AdminArtworksDashboard 
-        stats={stats}
-        featuredArtworks={featuredArtworks}
-        totalArtworks={allArtworks.length}
-      />
-    </div>
+    <AdminArtworksDashboard 
+      stats={stats}
+      featuredArtworks={featuredArtworks}
+      totalArtworks={allArtworks.length}
+    />
   );
 }

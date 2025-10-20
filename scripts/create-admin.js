@@ -1,7 +1,7 @@
 // Script to create an admin user for testing
-const { db } = require('../src/lib/db');
-const { admins } = require('../src/lib/schema');
-const { eq } = require('drizzle-orm');
+import { db } from '../src/lib/db.js';
+import { admins } from '../src/lib/schema.js';
+import { eq } from 'drizzle-orm';
 
 async function createAdmin() {
   try {

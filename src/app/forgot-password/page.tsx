@@ -97,7 +97,7 @@ export default function ForgotPasswordPage() {
               <h2 className="text-3xl font-bold text-gray-900 mb-2">Reset Password</h2>
               <p className="text-gray-600">Enter your email to receive reset instructions</p>
             </div>
-            <StackForgotPassword />
+            <StackForgotPassword fullPage={false} />
           </div>
 
           {/* Back to Login */}

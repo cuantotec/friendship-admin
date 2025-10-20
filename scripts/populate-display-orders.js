@@ -1,6 +1,6 @@
-const { db } = require('../src/lib/db');
-const { artworks } = require('../src/lib/schema');
-const { eq, asc } = require('drizzle-orm');
+import { db } from '../src/lib/db.js';
+import { artworks } from '../src/lib/schema.js';
+import { eq, asc } from 'drizzle-orm';
 
 async function populateDisplayOrders() {
   try {

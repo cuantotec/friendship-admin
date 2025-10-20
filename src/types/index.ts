@@ -215,6 +215,10 @@ export interface ArtistListItem {
   userId: string | null;
   userEmail: string | null;
   userPrimaryEmail: string | null;
+  // Invitation data
+  isInvitation?: boolean;
+  invitationCode?: string | null;
+  invitedBy?: string | null;
 }
 
 export interface EventListItem {

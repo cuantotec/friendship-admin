@@ -21,7 +21,7 @@ export default async function AdminLayout({
   const hasAdminAccess = role === "admin" || role === "super_admin";
 
   if (!hasAdminAccess) {
-    redirect("/");
+    redirect("/login");
   }
 
   const navigation = [

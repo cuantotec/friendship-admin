@@ -1,4 +1,4 @@
-const { db } = require('../src/lib/db');
+import { db } from '../src/lib/db.js';
 
 async function addPreApprovedColumn() {
   try {

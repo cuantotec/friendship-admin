@@ -165,18 +165,6 @@ export const events = pgTable("events", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Event Artists Junction Table (Many-to-Many)
-export const eventArtists = pgTable("event_artists", {
-  id: serial("id").primaryKey(),
-  eventId: integer("event_id")
-    .references(() => events.id)
-    .notNull(),
-  artistId: integer("artist_id")
-    .references(() => artists.id)
-    .notNull(),
-  displayOrder: integer("display_order").default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
 // Inquiries Table
 export const inquiries = pgTable("inquiries", {
@@ -206,52 +194,10 @@ export const contacts = pgTable("contacts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Newsletter Subscriptions Table
-export const newsletters = pgTable("newsletters", {
-  id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Gallery Hours Table
-export const galleryHours = pgTable("gallery_hours", {
-  id: serial("id").primaryKey(),
-  mondayOpen: text("monday_open"),
-  mondayClose: text("monday_close"),
-  mondayUseText: boolean("monday_use_text").default(false).notNull(),
-  mondayText: text("monday_text"),
-  tuesdayOpen: text("tuesday_open"),
-  tuesdayClose: text("tuesday_close"),
-  tuesdayUseText: boolean("tuesday_use_text").default(false).notNull(),
-  tuesdayText: text("tuesday_text"),
-  wednesdayOpen: text("wednesday_open"),
-  wednesdayClose: text("wednesday_close"),
-  wednesdayUseText: boolean("wednesday_use_text").default(false).notNull(),
-  wednesdayText: text("wednesday_text"),
-  thursdayOpen: text("thursday_open"),
-  thursdayClose: text("thursday_close"),
-  thursdayUseText: boolean("thursday_use_text").default(false).notNull(),
-  thursdayText: text("thursday_text"),
-  fridayOpen: text("friday_open"),
-  fridayClose: text("friday_close"),
-  fridayUseText: boolean("friday_use_text").default(false).notNull(),
-  fridayText: text("friday_text"),
-  saturdayOpen: text("saturday_open"),
-  saturdayClose: text("saturday_close"),
-  saturdayUseText: boolean("saturday_use_text").default(false).notNull(),
-  saturdayText: text("saturday_text"),
-  sundayOpen: text("sunday_open"),
-  sundayClose: text("sunday_close"),
-  sundayUseText: boolean("sunday_use_text").default(false).notNull(),
-  sundayText: text("sunday_text"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
 
 // Define relations
 export const artistsRelations = relations(artists, ({ many }) => ({
   artworks: many(artworks),
-  eventArtists: many(eventArtists),
 }));
 
 export const artworksRelations = relations(artworks, ({ one, many }) => ({
@@ -269,19 +215,8 @@ export const inquiriesRelations = relations(inquiries, ({ one }) => ({
   }),
 }));
 
-export const eventsRelations = relations(events, ({ many }) => ({
-  eventArtists: many(eventArtists),
-}));
-
-export const eventArtistsRelations = relations(eventArtists, ({ one }) => ({
-  event: one(events, {
-    fields: [eventArtists.eventId],
-    references: [events.id],
-  }),
-  artist: one(artists, {
-    fields: [eventArtists.artistId],
-    references: [artists.id],
-  }),
+export const eventsRelations = relations(events, () => ({
+  // No relations for now
 }));
 
 // Create Zod schemas for validation
@@ -348,16 +283,6 @@ export const contactInsertSchema = createInsertSchema(contacts, {
   message: (schema) => schema.min(10, "Message must be at least 10 characters"),
 });
 
-export const newsletterInsertSchema = createInsertSchema(newsletters, {
-  email: (schema) =>
-    schema
-      .email("Must be a valid email address")
-      .transform((val) => val.toLowerCase()),
-});
-
-export const galleryHoursInsertSchema = createInsertSchema(galleryHours);
-
-export const eventArtistsInsertSchema = createInsertSchema(eventArtists);
 
 // Export types
 export type Artist = typeof artists.$inferSelect;
@@ -378,14 +303,6 @@ export type InquiryInsert = z.infer<typeof inquiryInsertSchema>;
 export type Contact = typeof contacts.$inferSelect;
 export type ContactInsert = z.infer<typeof contactInsertSchema>;
 
-export type Newsletter = typeof newsletters.$inferSelect;
-export type NewsletterInsert = z.infer<typeof newsletterInsertSchema>;
-
-export type GalleryHours = typeof galleryHours.$inferSelect;
-export type GalleryHoursInsert = z.infer<typeof galleryHoursInsertSchema>;
-
-export type EventArtist = typeof eventArtists.$inferSelect;
-export type EventArtistInsert = z.infer<typeof eventArtistsInsertSchema>;
 
 // Event Registrations Table
 export const eventRegistrations = pgTable("event_registrations", {

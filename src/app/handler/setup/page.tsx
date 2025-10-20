@@ -19,7 +19,7 @@ import {
   Image as ImageIcon,
   X
 } from "lucide-react";
-import { createArtistFromInvitation } from "@/lib/actions/artist-invitation-actions";
+import { createArtistFromAuth } from "@/lib/actions/artist-invitation-actions";
 import { stackClientApp } from "@/stack/client";
 
 export default function ArtistSetupPage() {
@@ -43,45 +43,49 @@ export default function ArtistSetupPage() {
   });
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
 
+  const checkExistingArtist = async (email: string | null) => {
+    if (!email) return null;
+    try {
+      const response = await fetch(`/api/artists?email=${encodeURIComponent(email)}`);
+      const result = await response.json();
+      return result.success ? result.data : null;
+    } catch (error) {
+      console.error("Error checking existing artist:", error);
+      return null;
+    }
+  };
+
   const checkAuthAndValidate = useCallback(async (code: string) => {
     try {
-      // Check if user is already authenticated (magic link should have logged them in)
+      // Check if user is already authenticated
       const user = await stackClientApp.getUser();
       
       if (user) {
-        // User is authenticated, validate the invitation
+        // User is authenticated, check if they have an artist profile
         setIsAuthenticated(true);
         setUser(user);
-        await validateInvitation(code);
-      } else {
-        // User is not authenticated, validate invitation first
-        const invitationResponse = await fetch(`/api/validate-invitation?code=${code}`);
-        const invitationResult = await invitationResponse.json();
         
-        if (!invitationResult.success) {
-          setInvitation({
-            name: "",
-            email: "",
-            code: code,
-            isValid: false
+        // Check if they already have an artist profile
+        const existingArtist = await checkExistingArtist(user.primaryEmail);
+        if (existingArtist) {
+          toast.success("Welcome back!", {
+            description: "You already have an artist profile"
           });
-          setIsLoading(false);
+          router.push("/admin/artists");
           return;
         }
-
-        // Store invitation data and redirect to login
+        
+        // Allow authenticated users to proceed with setup using their email
         setInvitation({
-          name: invitationResult.data.name,
-          email: invitationResult.data.email,
-          code: code,
+          name: user.displayName || "Artist",
+          email: user.primaryEmail || "",
+          code: "",
           isValid: true
         });
-        
-        setIsAuthenticated(false);
-        setUser(null);
-        // Store the code in sessionStorage for after login
-        sessionStorage.setItem('invitationCode', code);
-        // Redirect to login with return URL
+        setIsLoading(false);
+        return;
+      } else {
+        // User is not authenticated, redirect to login
         const loginUrl = `/login?redirect=${encodeURIComponent(window.location.href)}`;
         router.push(loginUrl);
       }
@@ -98,18 +102,9 @@ export default function ArtistSetupPage() {
   }, [router]);
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (!code) {
-      toast.error("Invalid invitation link", {
-        description: "No invitation code found in the URL"
-      });
-      router.push("/");
-      return;
-    }
-
-    // Check authentication and validate invitation
-    checkAuthAndValidate(code);
-  }, [searchParams, router, checkAuthAndValidate]);
+    // Always check authentication - no invitation code required
+    checkAuthAndValidate("");
+  }, [checkAuthAndValidate]);
 
   const validateInvitation = async (code: string) => {
     try {
@@ -247,8 +242,7 @@ export default function ArtistSetupPage() {
       }
 
       // Create artist account using Stack Auth
-      const result = await createArtistFromInvitation({
-        invitationCode: invitation.code,
+      const result = await createArtistFromAuth({
         bio: formData.bio,
         specialty: formData.specialty,
         exhibitions: formData.exhibitions,
@@ -311,12 +305,12 @@ export default function ArtistSetupPage() {
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center">
             <XCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Invalid Invitation</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Required</h2>
             <p className="text-gray-600 mb-4">
-              This invitation link is invalid or has expired. Please contact the gallery administrator.
+              You must be logged in to create an artist profile. Please log in and try again.
             </p>
-            <Button onClick={() => router.push("/")} variant="outline">
-              Return to Home
+            <Button onClick={() => router.push("/login")} variant="outline">
+              Go to Login
             </Button>
           </CardContent>
         </Card>
@@ -343,7 +337,7 @@ export default function ArtistSetupPage() {
               <div>
                 <p className="font-medium text-blue-900">Hello {invitation.name}!</p>
                 <p className="text-sm text-blue-700">
-                  You&apos;ve been invited to join our gallery. Let&apos;s set up your artist profile.
+                  Welcome to our gallery! Let&apos;s set up your artist profile.
                 </p>
               </div>
             </div>

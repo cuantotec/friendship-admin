@@ -85,6 +85,12 @@ export const revalidationPatterns = {
     tags: ['artists']
   }),
   
+  // Revalidate events pages
+  events: () => triggerRevalidation({
+    paths: ['/events', '/'],
+    tags: ['events']
+  }),
+  
   // Revalidate everything
   all: () => triggerRevalidation({
     paths: ['/'],
