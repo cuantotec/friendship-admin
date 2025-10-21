@@ -92,6 +92,9 @@ export default function ArtworkModal({
   useEffect(() => {
     if (isOpen) {
       if (mode === 'create') {
+        // For non-admin users, always use their own artistId
+        const currentArtistId = !isAdmin ? artistId : selectedArtistId;
+        
         // Initialize with empty artwork for creation
         setEditedArtwork({
           title: '',
@@ -105,7 +108,7 @@ export default function ArtworkModal({
           price: '0',
           status: 'Draft',
           featured: 0,
-          artistId: selectedArtistId
+          artistId: currentArtistId
         });
         setIsEditing(true);
         setImageFile(null);
@@ -122,7 +125,7 @@ export default function ArtworkModal({
         setIsSubmitting(false);
       }
     }
-  }, [artwork, isOpen, mode, selectedArtistId]);
+  }, [artwork, isOpen, mode, selectedArtistId, isAdmin, artistId]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -603,6 +606,14 @@ export default function ArtworkModal({
                     {validationErrors.artistId && (
                       <p className="mt-1 text-sm text-red-600">{validationErrors.artistId[0]}</p>
                     )}
+                  </div>
+                )}
+
+                {/* Artist Info - Show for non-admin users */}
+                {!isAdmin && mode === 'create' && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Artist</Label>
+                    <p className="mt-1 text-gray-900 font-medium">Your artwork will be associated with your artist profile</p>
                   </div>
                 )}
 
