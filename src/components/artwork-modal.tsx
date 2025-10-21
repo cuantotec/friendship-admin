@@ -58,7 +58,7 @@ export default function ArtworkModal({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
-  const [isFormValid, setIsFormValid] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Validation function
@@ -66,7 +66,6 @@ export default function ArtworkModal({
     try {
       const validatedData = artworkSchema.parse(artworkData);
       setValidationErrors({});
-      setIsFormValid(true);
       return { isValid: true, data: validatedData, errors: {} };
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'errors' in error) {
@@ -79,11 +78,9 @@ export default function ArtworkModal({
           errors[field].push(err.message);
         });
         setValidationErrors(errors);
-        setIsFormValid(false);
         return { isValid: false, data: null, errors };
       }
       setValidationErrors({});
-      setIsFormValid(false);
       return { isValid: false, data: null, errors: {} };
     }
   };
@@ -111,14 +108,14 @@ export default function ArtworkModal({
         setImageFile(null);
         setImagePreview(null);
         setValidationErrors({});
-        setIsFormValid(false);
+        setIsSubmitting(false);
       } else if (artwork) {
         setEditedArtwork({ ...artwork });
         setIsEditing(false);
         setImageFile(null);
         setImagePreview(null);
         setValidationErrors({});
-        setIsFormValid(false);
+        setIsSubmitting(false);
       }
     }
   }, [artwork, isOpen, mode, artistId]);
@@ -138,7 +135,7 @@ export default function ArtworkModal({
       setImagePreview(null);
     }
     setValidationErrors({});
-    setIsFormValid(false);
+    setIsSubmitting(false);
   };
 
   const handleInputChange = (field: string, value: string | number | boolean | null) => {
@@ -158,22 +155,6 @@ export default function ArtworkModal({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // First validate the form before allowing image selection
-    if (editedArtwork) {
-      const validation = validateForm(editedArtwork);
-      if (!validation.isValid) {
-        toast.error("Please fix all form errors before uploading an image", {
-          description: "Complete and validate the form first",
-          icon: <XCircle className="h-4 w-4" />
-        });
-        // Clear the file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        return;
-      }
-    }
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -248,7 +229,11 @@ export default function ArtworkModal({
   };
 
   const handleSave = async () => {
-    if (!editedArtwork) return;
+    if (!editedArtwork || isSubmitting) return;
+
+    // Prevent multiple submissions
+    setIsSubmitting(true);
+    setIsLoading(true);
 
     // Comprehensive validation using Zod
     const validation = validateForm(editedArtwork);
@@ -259,10 +244,10 @@ export default function ArtworkModal({
         description: errorMessages.join(', '),
         icon: <XCircle className="h-4 w-4" />
       });
+      setIsLoading(false);
+      setIsSubmitting(false);
       return;
     }
-
-    setIsLoading(true);
     
     const loadingToast = toast.loading(
       mode === 'create' ? 'Creating artwork...' : 'Saving artwork changes...',
@@ -341,6 +326,7 @@ export default function ArtworkModal({
       );
     } finally {
       setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -490,7 +476,7 @@ export default function ArtworkModal({
                   variant="outline"
                   className="w-full"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading || !isFormValid}
+                  disabled={isUploading}
                 >
                   {isUploading ? (
                     <>
@@ -863,7 +849,7 @@ export default function ArtworkModal({
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   <Button
                     onClick={handleSave}
-                    disabled={isLoading || isUploading}
+                    disabled={isLoading || isUploading || isSubmitting}
                     className="flex items-center justify-center gap-2 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     {isLoading ? (
@@ -876,7 +862,7 @@ export default function ArtworkModal({
                   <Button
                     variant="outline"
                     onClick={handleCancel}
-                    disabled={isLoading || isUploading}
+                    disabled={isLoading || isUploading || isSubmitting}
                     className="w-full sm:w-auto border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     Cancel
@@ -885,7 +871,7 @@ export default function ArtworkModal({
                     <Button
                       variant="destructive"
                       onClick={handleDelete}
-                      disabled={isLoading || isUploading}
+                      disabled={isLoading || isUploading || isSubmitting}
                       className="flex items-center justify-center gap-2 w-full sm:w-auto sm:ml-auto bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       {isLoading ? (
