@@ -49,8 +49,10 @@ export async function POST(request: NextRequest) {
       data: {
         invitationId: invitation[0].id,
         code: invitationCode,
+        artistName: name,
+        email: email,
       },
-      message: "Artist invitation sent successfully"
+      message: `Artist invitation sent successfully to ${name}`
     });
   } catch (error) {
     console.error("Invite artist error:", error);

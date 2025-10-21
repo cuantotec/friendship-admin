@@ -37,13 +37,19 @@ export function InviteArtistModal({ children }: InviteArtistModalProps) {
       });
 
       const result = await response.json();
+      console.log("Invite artist response:", result);
 
       if (result.success) {
-        toast.success("Artist invitation sent successfully!");
+        toast.success("Artist invitation sent successfully!", {
+          description: `Invitation sent to ${formData.name} (${formData.email})`,
+          duration: 5000,
+        });
         setFormData({ name: "", email: "", specialty: "", message: "" });
         setIsOpen(false);
       } else {
-        toast.error(result.error || "Failed to send invitation");
+        toast.error(result.error || "Failed to send invitation", {
+          description: result.details || "Please try again",
+        });
       }
     } catch (error) {
       console.error("Invitation error:", error);
