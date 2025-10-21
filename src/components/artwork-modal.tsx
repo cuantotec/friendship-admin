@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { updateArtwork, deleteArtwork, createArtwork } from "@/lib/actions/artwork-actions";
+import { artworkSchema } from "@/lib/validations/artwork";
 import { toast } from "sonner";
 import { 
   Edit, 
@@ -56,7 +57,36 @@ export default function ArtworkModal({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
+  const [isFormValid, setIsFormValid] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Validation function
+  const validateForm = (artworkData: Partial<Artwork & ArtworkWithDisplayOrder>) => {
+    try {
+      const validatedData = artworkSchema.parse(artworkData);
+      setValidationErrors({});
+      setIsFormValid(true);
+      return { isValid: true, data: validatedData, errors: {} };
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'errors' in error) {
+        const errors: Record<string, string[]> = {};
+        (error as { errors: Array<{ path: string[]; message: string }> }).errors.forEach((err) => {
+          const field = err.path.join('.');
+          if (!errors[field]) {
+            errors[field] = [];
+          }
+          errors[field].push(err.message);
+        });
+        setValidationErrors(errors);
+        setIsFormValid(false);
+        return { isValid: false, data: null, errors };
+      }
+      setValidationErrors({});
+      setIsFormValid(false);
+      return { isValid: false, data: null, errors: {} };
+    }
+  };
 
   // Initialize edited artwork when modal opens
   useEffect(() => {
@@ -80,11 +110,15 @@ export default function ArtworkModal({
         setIsEditing(true);
         setImageFile(null);
         setImagePreview(null);
+        setValidationErrors({});
+        setIsFormValid(false);
       } else if (artwork) {
         setEditedArtwork({ ...artwork });
         setIsEditing(false);
         setImageFile(null);
         setImagePreview(null);
+        setValidationErrors({});
+        setIsFormValid(false);
       }
     }
   }, [artwork, isOpen, mode, artistId]);
@@ -103,11 +137,43 @@ export default function ArtworkModal({
       setImageFile(null);
       setImagePreview(null);
     }
+    setValidationErrors({});
+    setIsFormValid(false);
+  };
+
+  const handleInputChange = (field: string, value: string | number | boolean | null) => {
+    if (!editedArtwork) return;
+    
+    const updatedArtwork = {
+      ...editedArtwork,
+      [field]: value
+    };
+    
+    setEditedArtwork(updatedArtwork);
+    
+    // Real-time validation
+    validateForm(updatedArtwork);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // First validate the form before allowing image selection
+    if (editedArtwork) {
+      const validation = validateForm(editedArtwork);
+      if (!validation.isValid) {
+        toast.error("Please fix all form errors before uploading an image", {
+          description: "Complete and validate the form first",
+          icon: <XCircle className="h-4 w-4" />
+        });
+        // Clear the file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return;
+      }
+    }
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -184,10 +250,13 @@ export default function ArtworkModal({
   const handleSave = async () => {
     if (!editedArtwork) return;
 
-    // Validate required fields
-    if (!editedArtwork.title?.trim()) {
-      toast.error('Title is required', {
-        description: 'Please enter a title for the artwork',
+    // Comprehensive validation using Zod
+    const validation = validateForm(editedArtwork);
+    if (!validation.isValid) {
+      // Show all validation errors
+      const errorMessages = Object.values(validationErrors).flat();
+      toast.error('Please fix all form errors', {
+        description: errorMessages.join(', '),
         icon: <XCircle className="h-4 w-4" />
       });
       return;
@@ -317,23 +386,6 @@ export default function ArtworkModal({
     }
   };
 
-  const handleInputChange = (field: string, value: string | number | boolean) => {
-    if (editedArtwork) {
-      // Handle 3D dimensions - convert empty strings to null for proper validation
-      if (['widthCm', 'heightCm', 'depthCm'].includes(field)) {
-        const numValue = value === '' ? null : (typeof value === 'string' ? parseFloat(value) : value);
-        setEditedArtwork({
-          ...editedArtwork,
-          [field]: isNaN(numValue as number) ? null : numValue
-        });
-      } else {
-        setEditedArtwork({
-          ...editedArtwork,
-          [field]: value
-        });
-      }
-    }
-  };
 
   const currentArtwork = isEditing ? editedArtwork : artwork;
   const displayImage = imagePreview || currentArtwork?.watermarkedImage;
@@ -438,7 +490,7 @@ export default function ArtworkModal({
                   variant="outline"
                   className="w-full"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
+                  disabled={isUploading || !isFormValid}
                 >
                   {isUploading ? (
                     <>
@@ -509,11 +561,14 @@ export default function ArtworkModal({
                       id="title"
                       value={currentArtwork?.title || ""}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("title", e.target.value)}
-                      className="mt-1"
+                      className={`mt-1 ${validationErrors.title ? 'border-red-500 focus:border-red-500' : ''}`}
                       placeholder="Enter artwork title"
                     />
                   ) : (
                     <p className="mt-1 text-gray-900 font-medium">{currentArtwork?.title}</p>
+                  )}
+                  {validationErrors.title && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.title[0]}</p>
                   )}
                 </div>
 
@@ -526,11 +581,14 @@ export default function ArtworkModal({
                         type="number"
                         value={currentArtwork?.year || ""}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("year", e.target.value)}
-                        className="mt-1"
+                        className={`mt-1 ${validationErrors.year ? 'border-red-500 focus:border-red-500' : ''}`}
                         placeholder="e.g., 2024"
                       />
                     ) : (
                       <p className="mt-1 text-gray-900 font-medium">{currentArtwork?.year}</p>
+                    )}
+                    {validationErrors.year && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.year[0]}</p>
                     )}
                   </div>
 
@@ -541,11 +599,14 @@ export default function ArtworkModal({
                         id="medium"
                         value={currentArtwork?.medium || ""}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("medium", e.target.value)}
-                        className="mt-1"
+                        className={`mt-1 ${validationErrors.medium ? 'border-red-500 focus:border-red-500' : ''}`}
                         placeholder="e.g., Oil on canvas"
                       />
                     ) : (
                       <p className="mt-1 text-gray-900 font-medium">{currentArtwork?.medium}</p>
+                    )}
+                    {validationErrors.medium && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.medium[0]}</p>
                     )}
                   </div>
                 </div>
@@ -557,11 +618,14 @@ export default function ArtworkModal({
                       id="dimensions"
                       value={currentArtwork?.dimensions || ""}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("dimensions", e.target.value)}
-                      className="mt-1"
+                      className={`mt-1 ${validationErrors.dimensions ? 'border-red-500 focus:border-red-500' : ''}`}
                       placeholder="e.g., 24 x 36 inches"
                     />
                   ) : (
                     <p className="mt-1 text-gray-900">{currentArtwork?.dimensions || "Not specified"}</p>
+                  )}
+                  {validationErrors.dimensions && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.dimensions[0]}</p>
                   )}
                 </div>
 
@@ -627,7 +691,7 @@ export default function ArtworkModal({
                       id="description"
                       value={currentArtwork?.description || ""}
                       onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange("description", e.target.value)}
-                      className="mt-1"
+                      className={`mt-1 ${validationErrors.description ? 'border-red-500 focus:border-red-500' : ''}`}
                       rows={4}
                       placeholder="Describe the artwork..."
                     />
@@ -635,6 +699,9 @@ export default function ArtworkModal({
                     <p className="mt-1 text-gray-900 whitespace-pre-wrap">
                       {currentArtwork?.description || "No description provided"}
                     </p>
+                  )}
+                  {validationErrors.description && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.description[0]}</p>
                   )}
                 </div>
               </div>
@@ -662,13 +729,16 @@ export default function ArtworkModal({
                         const limitedValue = Math.min(value, 100000);
                         handleInputChange("price", limitedValue.toString());
                       }}
-                      className="mt-1"
+                      className={`mt-1 ${validationErrors.price ? 'border-red-500 focus:border-red-500' : ''}`}
                       placeholder="0.00"
                     />
                   ) : (
                     <p className="mt-1 text-gray-900 font-medium text-lg">
                       ${parseFloat(currentArtwork?.price || "0").toLocaleString()}
                     </p>
+                  )}
+                  {validationErrors.price && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.price[0]}</p>
                   )}
                 </div>
 
@@ -679,7 +749,7 @@ export default function ArtworkModal({
                       value={currentArtwork?.status || "Available"}
                       onValueChange={(value) => handleInputChange("status", value)}
                     >
-                      <SelectTrigger className="mt-1 bg-white">
+                      <SelectTrigger className={`mt-1 bg-white ${validationErrors.status ? 'border-red-500 focus:border-red-500' : ''}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
@@ -702,6 +772,9 @@ export default function ArtworkModal({
                         {currentArtwork?.status}
                       </Badge>
                     </div>
+                  )}
+                  {validationErrors.status && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.status[0]}</p>
                   )}
                 </div>
               </div>
