@@ -231,6 +231,15 @@ export default function ArtworkModal({
   const handleSave = async () => {
     if (!editedArtwork || isSubmitting) return;
 
+    // Check if artistId is valid
+    if (!artistId || artistId <= 0) {
+      toast.error('Invalid artist ID', {
+        description: 'Please contact an administrator to set up your artist profile',
+        icon: <XCircle className="h-4 w-4" />
+      });
+      return;
+    }
+
     // Prevent multiple submissions
     setIsSubmitting(true);
     setIsLoading(true);

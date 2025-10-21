@@ -318,6 +318,23 @@ export async function createArtwork(
       };
     }
     
+    // Handle specific database errors
+    if (error instanceof Error) {
+      if (error.message.includes('foreign key constraint') && error.message.includes('artists_id_fk')) {
+        return {
+          success: false,
+          error: "Artist profile not found. Please contact an administrator to set up your artist profile."
+        };
+      }
+      
+      if (error.message.includes('duplicate key')) {
+        return {
+          success: false,
+          error: "An artwork with this title already exists."
+        };
+      }
+    }
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to create artwork"
