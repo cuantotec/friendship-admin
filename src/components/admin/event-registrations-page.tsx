@@ -24,7 +24,7 @@ import {
   Filter,
   MoreVertical
 } from "lucide-react";
-import { formatEventDateTime, formatDateInEastern, formatTimeInEastern } from "@/lib/dateUtils";
+import { formatEventDateTime, formatEasternDate } from "@/lib/dateUtils";
 import { useRouter } from "next/navigation";
 import { 
   DropdownMenu,
@@ -74,7 +74,7 @@ export default function EventRegistrationsPage({
         reg.email,
         reg.phoneNumber || "",
         reg.numberOfAttendees.toString(),
-        formatDateInEastern(reg.createdAt, "yyyy-MM-dd HH:mm:ss"),
+        formatEasternDate(reg.createdAt, "yyyy-MM-dd HH:mm:ss"),
         reg.additionalInformation || ""
       ])
     ].map(row => row.join(",")).join("\n");
@@ -241,10 +241,10 @@ export default function EventRegistrationsPage({
                       <TableCell>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Calendar className="h-3 w-3 text-gray-400" />
-                          {formatDateInEastern(registration.createdAt, "MMM d, yyyy")}
+                          {formatEasternDate(registration.createdAt, "MMM d, yyyy")}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {formatTimeInEastern(registration.createdAt, "h:mm a")}
+                          {formatEasternDate(registration.createdAt, "h:mm a")}
                         </div>
                       </TableCell>
                       <TableCell>

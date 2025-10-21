@@ -247,10 +247,10 @@ export interface EventListItem {
   recurringStartAmpm: string | null;
   recurringEndTime: string | null;
   recurringEndAmpm: string | null;
-  featuredArtists: unknown;
+  featuredArtists: string | null;
   parentEventId: number | null;
   isRecurringInstance: boolean;
-  paymentTiers: unknown;
+  paymentTiers: string | null;
   createdAt: string;
 }
 

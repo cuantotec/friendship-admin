@@ -30,7 +30,7 @@ export default async function AdminLayout({
     { name: "Artists", href: "/admin/artists", icon: "Users" },
     { name: "Sorting", href: "/admin/sorting", icon: "ArrowUpDown" },
     { name: "Events", href: "/admin/events", icon: "Calendar" },
-    { name: "Inquiries", href: "/admin/inquiries", icon: "MessageSquare" },
+    { name: "Inquiries", href: "/admin/inquiries", icon: "Users" },
   ];
 
   // Extract only serializable user data

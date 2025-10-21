@@ -24,12 +24,6 @@ export default function ArtistsPageHeader({ artists, stats }: ArtistsPageHeaderP
           </p>
         </div>
         
-        <div className="flex gap-2">
-          <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-            <Plus className="h-4 w-4" />
-            Invite New Artist
-          </Button>
-        </div>
       </div>
 
       {/* Stats Cards */}

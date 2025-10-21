@@ -3,17 +3,13 @@ import {
   EmailOptions, 
   EmailResult, 
   EmailRecipient,
-  ArtistInvitationData,
   ArtworkApprovalData,
   ArtworkRejectionData,
-  ArtistWelcomeData,
   ArtworkSubmissionNotificationData
 } from './types';
 import {
-  generateArtistInvitationEmail,
   generateArtworkApprovalEmail,
   generateArtworkRejectionEmail,
-  generateArtistWelcomeEmail,
   generateArtworkSubmissionNotificationEmail
 } from './templates';
 import { getAdminEmails, htmlToPlainText } from './helpers';
@@ -144,20 +140,6 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 }
 
 /**
- * Send artist invitation email
- */
-export async function sendArtistInvitation(data: ArtistInvitationData): Promise<EmailResult> {
-  const html = generateArtistInvitationEmail(data);
-  
-  return await sendEmail({
-    to: { email: data.artistEmail, name: data.artistName },
-    subject: '🎨 You\'re Invited to Join The Friendship Center Gallery',
-    html,
-    from: ARTIST_FROM,
-  });
-}
-
-/**
  * Send artwork approval email
  */
 export async function sendArtworkApproval(data: ArtworkApprovalData): Promise<EmailResult> {
@@ -180,20 +162,6 @@ export async function sendArtworkRejection(data: ArtworkRejectionData): Promise<
   return await sendEmail({
     to: { email: data.artistName, name: data.artistName },
     subject: `Artwork Submission Update: ${data.artworkTitle}`,
-    html,
-    from: ARTIST_FROM,
-  });
-}
-
-/**
- * Send artist welcome email
- */
-export async function sendArtistWelcome(data: ArtistWelcomeData): Promise<EmailResult> {
-  const html = generateArtistWelcomeEmail(data);
-  
-  return await sendEmail({
-    to: { email: data.artistEmail, name: data.artistName },
-    subject: '🎉 Welcome to The Friendship Center Gallery!',
     html,
     from: ARTIST_FROM,
   });
@@ -258,10 +226,8 @@ export type {
   EmailOptions, 
   EmailResult, 
   EmailRecipient,
-  ArtistInvitationData,
   ArtworkApprovalData,
   ArtworkRejectionData,
-  ArtistWelcomeData,
   ArtworkSubmissionNotificationData
 } from './types';
 

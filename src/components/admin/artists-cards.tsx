@@ -4,16 +4,14 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Mail, Eye, EyeOff, Star, UserPlus, KeyRound, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { Users, Mail, Eye, EyeOff, Star, UserPlus, KeyRound, ShieldAlert, Trash2 } from "lucide-react";
 import { useState } from "react";
 import ArtistProfileModal from "../artist-profile-modal";
 import ArtistSettingsModal from "../artist-settings-modal";
-import InviteExistingArtistModal from "./invite-existing-artist-modal";
 import { toast } from "sonner";
 import {
   toggleArtistVisibility,
   deleteArtistAdmin,
-  deleteInvitationAdmin,
   sendPasswordResetEmail,
   updateUserStatus,
 } from "@/lib/actions/admin-actions";
@@ -29,8 +27,6 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteArtistData, setInviteArtistData] = useState<{name: string, email: string | null} | null>(null);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -46,32 +42,24 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
     });
   };
 
-  const handleDelete = (artistId: number, artistName: string, artworkCount: number, isInvitation: boolean = false) => {
-    if (!isInvitation && artworkCount > 0) {
+  const handleDelete = (artistId: number, artistName: string, artworkCount: number) => {
+    if (artworkCount > 0) {
       toast.error("Cannot delete artist with existing artworks");
       return;
     }
 
-    const itemType = isInvitation ? "invitation" : "artist";
-    if (!confirm(`Are you sure you want to delete ${itemType} "${artistName}"?`)) {
+    if (!confirm(`Are you sure you want to delete artist "${artistName}"?`)) {
       return;
     }
 
     startTransition(async () => {
-      let result;
-      if (isInvitation) {
-        // For invitations, use the positive ID (convert from negative)
-        const invitationId = Math.abs(artistId);
-        result = await deleteInvitationAdmin(invitationId);
-      } else {
-        result = await deleteArtistAdmin(artistId);
-      }
+      const result = await deleteArtistAdmin(artistId);
       
       if (result.success) {
-        toast.success(`${itemType.charAt(0).toUpperCase() + itemType.slice(1)} deleted successfully`);
+        toast.success("Artist deleted successfully");
         router.refresh();
       } else {
-        toast.error(result.error || `Failed to delete ${itemType}`);
+        toast.error(result.error || "Failed to delete artist");
       }
     });
   };
@@ -104,24 +92,7 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
     });
   };
 
-  const handleUnblockUser = (userId: string) => {
-    startTransition(async () => {
-      const result = await updateUserStatus(userId, { disabled: false });
-      if (result.success) {
-        toast.info(result.message || "User management instructions", {
-          duration: 8000,
-        });
-        router.refresh();
-      } else {
-        toast.error(result.error || "Failed to unblock user");
-      }
-    });
-  };
 
-  const handleInviteArtist = (artistName: string, artistEmail: string | null) => {
-    setInviteArtistData({ name: artistName, email: artistEmail });
-    setShowInviteModal(true);
-  };
 
   if (artists.length === 0) {
     return (
@@ -272,7 +243,7 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDelete(artist.id, artist.name, artist.artworkCount, true)}
+                        onClick={() => handleDelete(artist.id, artist.name, artist.artworkCount)}
                         disabled={isPending}
                         className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
@@ -363,19 +334,6 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
                       </div>
                     )}
 
-                    {/* Invite Artist for users without accounts */}
-                    {!artist.hasUser && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleInviteArtist(artist.name, artist.email)}
-                        disabled={isPending}
-                        className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                      >
-                        <UserPlus className="h-4 w-4 mr-1" />
-                        Invite Artist
-                      </Button>
-                    )}
 
                     {/* Visibility and Delete Actions */}
                     <div className="flex gap-2">
@@ -392,7 +350,7 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDelete(artist.id, artist.name, artist.artworkCount, false)}
+                        onClick={() => handleDelete(artist.id, artist.name, artist.artworkCount)}
                         disabled={isPending || artist.artworkCount > 0}
                         className={`flex-1 ${
                           artist.artworkCount > 0 
@@ -441,19 +399,6 @@ export default function ArtistsCards({ artists }: ArtistsCardsProps) {
         }}
       />
 
-      {/* Invite Artist Modal */}
-      <InviteExistingArtistModal
-        isOpen={showInviteModal}
-        onClose={() => {
-          setShowInviteModal(false);
-          setInviteArtistData(null);
-        }}
-        onInvitationSent={() => {
-          router.refresh();
-        }}
-        artistName={inviteArtistData?.name || ""}
-        artistEmail={inviteArtistData?.email || null}
-      />
     </div>
   );
 }

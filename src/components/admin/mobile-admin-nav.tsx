@@ -5,19 +5,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import ArtistInvitationModal from "./artist-invitation-modal";
 import { 
   LogOut, 
   Menu, 
-  X,
   Plus,
-  UserPlus,
   Home,
   Palette,
   Users,
   Calendar,
-  ArrowUpDown
+  ArrowUpDown,
+  Download,
+  UserPlus
 } from "lucide-react";
+import { ExportDataModal } from "./export-data-modal";
+import { InviteArtistModal } from "./invite-artist-modal";
 
 interface NavigationItem {
   name: string;
@@ -47,7 +48,6 @@ interface MobileAdminNavProps {
 
 export function MobileAdminNav({ navigation, user }: MobileAdminNavProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const pathname = usePathname();
 
   const handleSignOut = () => {
@@ -122,18 +122,6 @@ export function MobileAdminNav({ navigation, user }: MobileAdminNavProps) {
                       className="w-full justify-start gap-2"
                       onClick={() => {
                         setIsOpen(false);
-                        setIsInviteModalOpen(true);
-                      }}
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      Invite Artist
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start gap-2"
-                      onClick={() => {
-                        setIsOpen(false);
                         // Navigate to artworks page with add parameter
                         window.location.href = '/admin/artworks?add=true';
                       }}
@@ -141,6 +129,26 @@ export function MobileAdminNav({ navigation, user }: MobileAdminNavProps) {
                       <Plus className="h-4 w-4" />
                       Add Artwork
                     </Button>
+                    <InviteArtistModal>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start gap-2"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        Invite an Artist
+                      </Button>
+                    </InviteArtistModal>
+                    <ExportDataModal>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Export Data
+                      </Button>
+                    </ExportDataModal>
                   </div>
                 </div>
 
@@ -182,15 +190,26 @@ export function MobileAdminNav({ navigation, user }: MobileAdminNavProps) {
 
         {/* Mobile Quick Actions */}
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.location.href = '/admin/artists?invite=true'}
-            className="hidden sm:flex items-center gap-1"
-          >
-            <UserPlus className="h-4 w-4" />
-            <span className="hidden sm:inline">Invite</span>
-          </Button>
+          <InviteArtistModal>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span className="hidden sm:inline">Invite</span>
+            </Button>
+          </InviteArtistModal>
+          <ExportDataModal>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+          </ExportDataModal>
           <Button
             variant="outline"
             size="sm"
@@ -202,17 +221,6 @@ export function MobileAdminNav({ navigation, user }: MobileAdminNavProps) {
           </Button>
         </div>
       </div>
-
-      {/* Modals */}
-      <ArtistInvitationModal
-        isOpen={isInviteModalOpen}
-        onClose={() => setIsInviteModalOpen(false)}
-        onInvitationSent={() => {
-          setIsInviteModalOpen(false);
-          // Refresh the page to show updated data
-          window.location.reload();
-        }}
-      />
     </div>
   );
 }

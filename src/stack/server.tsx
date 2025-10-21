@@ -9,7 +9,7 @@ export const stackServerApp = new StackServerApp({
     signIn: '/login',
     passwordReset: '/reset-password',
     home: '/',
-    afterSignIn: '/handler/setup',
+    afterSignIn: '/',
     afterSignOut: '/login',
   },
 });

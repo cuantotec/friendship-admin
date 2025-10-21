@@ -18,12 +18,15 @@ import {
   Users,
   Clock,
   DollarSign,
-  RotateCcw
+  RotateCcw,
+  XCircle
 } from "lucide-react";
 import { formatEventDateTime } from "@/lib/dateUtils";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import EventEditModal from "@/components/admin/event-edit-modal";
+import { updateEvent } from "@/lib/actions/admin-actions";
+import { toast } from "sonner";
 import type { EventListItem } from "@/types";
 
 interface EventsCardsProps {
@@ -60,6 +63,60 @@ function getStatusColor(status: string): string {
 export default function EventsCards({ events }: EventsCardsProps) {
   const router = useRouter();
   const [editingEvent, setEditingEvent] = useState<EventListItem | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const handleCancelEvent = (event: EventListItem) => {
+    if (!confirm(`Are you sure you want to cancel "${event.title}"? This will hide the event from the frontend.`)) {
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await updateEvent(event.id, {
+          title: event.title,
+          description: event.description,
+          eventType: event.eventType,
+          slug: event.slug,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          location: event.location,
+          address: event.address,
+          featuredImage: event.featuredImage,
+          registrationEnabled: event.registrationEnabled,
+          registrationType: event.registrationType,
+          paymentEnabled: event.paymentEnabled,
+          isFreeEvent: event.isFreeEvent,
+          chabadPay: event.chabadPay,
+          isRecurring: event.isRecurring,
+          recurringType: event.recurringType,
+          recurringStartTime: event.recurringStartTime,
+          recurringStartAmpm: event.recurringStartAmpm,
+          recurringEndTime: event.recurringEndTime,
+          recurringEndAmpm: event.recurringEndAmpm,
+          parentEventId: event.parentEventId,
+          isRecurringInstance: event.isRecurringInstance,
+          paymentTiers: event.paymentTiers,
+          status: 'Canceled', // Set status to Canceled
+          isCanceled: true // Also set isCanceled flag
+        });
+
+        if (result.success) {
+          toast.success("Event canceled successfully", {
+            description: "The event has been hidden from the frontend."
+          });
+          router.refresh();
+        } else {
+          toast.error("Failed to cancel event", {
+            description: result.error || "An error occurred while canceling the event."
+          });
+        }
+      } catch (error) {
+        toast.error("Failed to cancel event", {
+          description: error instanceof Error ? error.message : "An unexpected error occurred."
+        });
+      }
+    });
+  };
 
   if (events.length === 0) {
     return (
@@ -195,6 +252,16 @@ export default function EventsCards({ events }: EventsCardsProps) {
                         <Users className="h-4 w-4 mr-2" />
                         View Registrations
                       </DropdownMenuItem>
+                      {event.status !== 'Canceled' && (
+                        <DropdownMenuItem 
+                          onClick={() => handleCancelEvent(event)}
+                          className="cursor-pointer text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                          disabled={isPending}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Cancel Event
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

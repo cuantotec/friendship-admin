@@ -43,11 +43,45 @@ export function convertEasternToUTC(easternTimeStr: string): string {
   const [year, month, day] = datePart.split('-').map(Number);
   const [hour, minute, second = 0] = timePart.split(':').map(Number);
   
-  // Create a date object representing the Eastern time
-  const easternDate = new Date(year, month - 1, day, hour, minute, second);
+  // Create a date string in the format that represents Eastern time
+  const easternDateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}`;
   
-  // Convert to UTC using native JavaScript timezone handling
-  return easternDate.toISOString();
+  // Use the most reliable method: create a date object and use timezone conversion
+  // We'll create a date that represents the Eastern time, then convert it properly
+  const easternDate = new Date(easternDateStr);
+  
+  // Get the timezone offset for Eastern time at this specific date
+  // We'll use the Intl.DateTimeFormat to get the correct offset
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  
+  // Get the parts to understand the timezone offset
+  const parts = formatter.formatToParts(easternDate);
+  const easternYear = parseInt(parts.find(part => part.type === 'year')?.value || '0');
+  const easternMonth = parseInt(parts.find(part => part.type === 'month')?.value || '0') - 1;
+  const easternDay = parseInt(parts.find(part => part.type === 'day')?.value || '0');
+  const easternHour = parseInt(parts.find(part => part.type === 'hour')?.value || '0');
+  const easternMinute = parseInt(parts.find(part => part.type === 'minute')?.value || '0');
+  const easternSecond = parseInt(parts.find(part => part.type === 'second')?.value || '0');
+  
+  // Create a date object representing the Eastern time
+  const easternTimeDate = new Date(easternYear, easternMonth, easternDay, easternHour, easternMinute, easternSecond);
+  
+  // Calculate the offset between the input time and the Eastern time
+  const offset = easternDate.getTime() - easternTimeDate.getTime();
+  
+  // Create the UTC date by adding the offset
+  const utcDate = new Date(easternDate.getTime() + offset);
+  
+  return utcDate.toISOString();
 }
 
 /**
@@ -89,68 +123,37 @@ export function convertUTCToEasternString(utcTimestamp: string | Date): string {
 export function formatEventDateTime(event: {
   startDate: string;
   endDate?: string | null;
-  isRecurring?: boolean;
-  recurringStartTime?: string | null;
-  recurringStartAmpm?: string | null;
-  recurringEndTime?: string | null;
-  recurringEndAmpm?: string | null;
+  recurring?: boolean;
 }): string {
-  // Convert to Eastern time
-  const startDate = convertToEasternTime(event.startDate);
-  const endDate = event.endDate ? convertToEasternTime(event.endDate) : null;
+  const startDate = new Date(event.startDate);
+  const endDate = event.endDate ? new Date(event.endDate) : null;
   
-  // Format the start date
-  const dateStr = format(startDate, "MMM d, yyyy");
+  // Format start date
+  const startFormatted = format(startDate, 'EEEE, MMMM d, yyyy \'at\' h:mm a');
   
-  // Check if we have recurring time fields (for recurring events)
-  if (event.isRecurring && event.recurringStartTime && event.recurringEndTime) {
-    const startTime = `${event.recurringStartTime}${event.recurringStartAmpm || ''}`;
-    const endTime = `${event.recurringEndTime}${event.recurringEndAmpm || ''}`;
-    return `${dateStr} ${startTime} - ${endTime}`;
+  if (endDate) {
+    const endFormatted = format(endDate, 'h:mm a');
+    return `${startFormatted} - ${endFormatted}`;
   }
   
-  // For regular events, extract time from the Eastern timestamp
-  const startTime = format(startDate, "h:mm a");
-  
-  if (endDate && endDate.getTime() !== startDate.getTime()) {
-    // Different dates - show date range
-    const endDateStr = format(endDate, "MMM d, yyyy");
-    const endTime = format(endDate, "h:mm a");
-    return `${dateStr} ${startTime} - ${endDateStr} ${endTime}`;
-  } else if (endDate) {
-    // Same date, different times
-    const endTime = format(endDate, "h:mm a");
-    return `${dateStr} ${startTime} - ${endTime}`;
-  } else {
-    // Only start time
-    return `${dateStr} ${startTime}`;
-  }
+  return startFormatted;
+}
+
+/**
+ * Gets the current time in Eastern Time
+ * @returns Date object representing current time in Eastern Time
+ */
+export function getCurrentEasternTime(): Date {
+  return convertToEasternTime(new Date());
 }
 
 /**
  * Formats a date for display in Eastern Time
- * @param utcTimestamp - ISO string or Date object in UTC
- * @param formatString - date-fns format string (default: "MMM d, yyyy")
+ * @param date - Date object or ISO string
+ * @param formatStr - Format string (default: 'MMM d, yyyy h:mm a')
  * @returns Formatted date string in Eastern Time
  */
-export function formatDateInEastern(
-  utcTimestamp: string | Date, 
-  formatString: string = "MMM d, yyyy"
-): string {
-  const easternDate = convertToEasternTime(utcTimestamp);
-  return format(easternDate, formatString);
-}
-
-/**
- * Formats a time for display in Eastern Time
- * @param utcTimestamp - ISO string or Date object in UTC
- * @param formatString - date-fns format string (default: "h:mm a")
- * @returns Formatted time string in Eastern Time
- */
-export function formatTimeInEastern(
-  utcTimestamp: string | Date, 
-  formatString: string = "h:mm a"
-): string {
-  const easternDate = convertToEasternTime(utcTimestamp);
-  return format(easternDate, formatString);
+export function formatEasternDate(date: Date | string, formatStr: string = 'MMM d, yyyy h:mm a'): string {
+  const easternDate = convertToEasternTime(date);
+  return format(easternDate, formatStr);
 }

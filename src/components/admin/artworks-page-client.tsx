@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +9,7 @@ import { Plus, Filter, Clock, Palette } from "lucide-react";
 import PendingArtworksTab from "./pending-artworks-tab";
 import ArtworksCards from "./artworks-cards";
 import ArtworksFilters from "./artworks-filters";
+import ArtworkModal from "../artwork-modal";
 import type { ArtworkListItem } from "@/types";
 
 interface ArtworksPageClientProps {
@@ -26,6 +28,19 @@ interface ArtworksPageClientProps {
 export default function ArtworksPageClient({ artworks, pendingArtworks, stats, locations }: ArtworksPageClientProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const searchParams = useSearchParams();
+
+  // Check if we should show the add modal
+  useEffect(() => {
+    if (searchParams.get('add') === 'true') {
+      setShowAddModal(true);
+      // Clean up the URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('add');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
 
   const handleArtworkUpdated = () => {
     // Refresh the page to show updated data
@@ -57,7 +72,7 @@ export default function ArtworksPageClient({ artworks, pendingArtworks, stats, l
 
           {/* Add Artwork Button */}
           <Button
-            onClick={() => window.location.href = '/admin/artworks?add=true'}
+            onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
           >
             <Plus className="h-4 w-4" />
@@ -144,6 +159,18 @@ export default function ArtworksPageClient({ artworks, pendingArtworks, stats, l
           />
         </TabsContent>
       </Tabs>
+
+      {/* Add Artwork Modal */}
+      {showAddModal && (
+        <ArtworkModal
+          artwork={null}
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onArtworkUpdated={handleArtworkUpdated}
+          onArtworkDeleted={handleArtworkUpdated}
+          artistId={1} // Default artist ID for new artworks
+        />
+      )}
     </div>
   );
 }

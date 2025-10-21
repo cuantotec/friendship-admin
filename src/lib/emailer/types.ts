@@ -29,15 +29,6 @@ export interface EmailResult {
 }
 
 // Artist-specific email data
-export interface ArtistInvitationData {
-  artistName: string;
-  artistEmail: string;
-  invitationCode?: string; // Made optional since we're not using it anymore
-  adminName: string;
-  setupUrl: string;
-  baseUrl: string; // Added for login page link
-}
-
 export interface ArtworkApprovalData {
   artistName: string;
   artworkTitle: string;
@@ -52,13 +43,6 @@ export interface ArtworkRejectionData {
   artworkId: string;
   rejectionReason: string;
   adminContact: string;
-}
-
-export interface ArtistWelcomeData {
-  artistName: string;
-  artistEmail: string;
-  dashboardUrl: string;
-  supportEmail: string;
 }
 
 export interface ArtworkSubmissionNotificationData {

@@ -11,8 +11,6 @@
 
 import { 
   sendEmail, 
-  sendArtistInvitation,
-  sendArtistWelcome,
   sendArtworkApproval,
   sendArtworkRejection,
   sendArtworkSubmissionNotification
@@ -48,40 +46,8 @@ async function runTests() {
     console.error('❌ Failed to send basic email:', basicResult.error, '\n');
   }
 
-  // Test 2: Artist Invitation
-  console.log('📧 Test 2: Sending artist invitation email...');
-  const invitationResult = await sendArtistInvitation({
-    artistName: TEST_NAME,
-    artistEmail: TEST_EMAIL,
-    invitationCode: 'TEST-INVITE-123',
-    adminName: 'Gallery Admin',
-    setupUrl: 'http://localhost:3002/setup?code=TEST-INVITE-123',
-    baseUrl: 'http://localhost:3002'
-  });
-
-  if (invitationResult.success) {
-    console.log('✅ Artist invitation sent successfully!', invitationResult.messageId, '\n');
-  } else {
-    console.error('❌ Failed to send invitation:', invitationResult.error, '\n');
-  }
-
-  // Test 3: Artist Welcome
-  console.log('📧 Test 3: Sending artist welcome email...');
-  const welcomeResult = await sendArtistWelcome({
-    artistName: TEST_NAME,
-    artistEmail: TEST_EMAIL,
-    dashboardUrl: 'http://localhost:3002/dashboard',
-    supportEmail: 'eliran@cuantotec.com'
-  });
-
-  if (welcomeResult.success) {
-    console.log('✅ Artist welcome sent successfully!', welcomeResult.messageId, '\n');
-  } else {
-    console.error('❌ Failed to send welcome:', welcomeResult.error, '\n');
-  }
-
-  // Test 4: Artwork Approval
-  console.log('📧 Test 4: Sending artwork approval email...');
+  // Test 2: Artwork Approval
+  console.log('📧 Test 2: Sending artwork approval email...');
   const approvalResult = await sendArtworkApproval({
     artistName: TEST_NAME,
     artworkTitle: 'Test Artwork - Sunset Dreams',
@@ -96,8 +62,8 @@ async function runTests() {
     console.error('❌ Failed to send approval:', approvalResult.error, '\n');
   }
 
-  // Test 5: Artwork Rejection
-  console.log('📧 Test 5: Sending artwork rejection email...');
+  // Test 3: Artwork Rejection
+  console.log('📧 Test 3: Sending artwork rejection email...');
   const rejectionResult = await sendArtworkRejection({
     artistName: TEST_NAME,
     artworkTitle: 'Test Artwork - Abstract Piece',
@@ -112,8 +78,8 @@ async function runTests() {
     console.error('❌ Failed to send rejection:', rejectionResult.error, '\n');
   }
 
-  // Test 6: Admin Notification
-  console.log('📧 Test 6: Sending admin notification...');
+  // Test 4: Admin Notification
+  console.log('📧 Test 4: Sending admin notification...');
   const notificationResult = await sendArtworkSubmissionNotification({
     artistName: TEST_NAME,
     artworkTitle: 'Test Artwork - New Submission',
@@ -143,8 +109,6 @@ async function runTests() {
   
   const results = [
     basicResult,
-    invitationResult,
-    welcomeResult,
     approvalResult,
     rejectionResult,
     notificationResult
