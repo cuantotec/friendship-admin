@@ -1,4 +1,4 @@
-import { getAllArtworks, getPendingArtworks } from "@/lib/actions/admin-actions";
+import { getAllArtworks, getPendingArtworks, getAllArtists } from "@/lib/actions/admin-actions";
 import ArtworksPageClient from "@/components/admin/artworks-page-client";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +16,7 @@ export default async function AdminArtworksPage({
 }) {
   const allArtworks = await getAllArtworks();
   const pendingArtworks = await getPendingArtworks();
+  const allArtists = await getAllArtists();
   const params = await searchParams;
 
   // Server-side filtering
@@ -57,7 +58,12 @@ export default async function AdminArtworksPage({
         artworks={filteredArtworks} 
         pendingArtworks={pendingArtworks}
         stats={stats} 
-        locations={locations} 
+        locations={locations}
+        artists={allArtists.map(artist => ({
+          id: artist.id,
+          name: artist.name,
+          email: artist.email
+        }))}
       />
     </div>
   );

@@ -38,6 +38,7 @@ interface ArtworkModalProps {
   artistId: number; // Required for creating new artworks
   mode?: 'edit' | 'create'; // Determines if modal is for editing or creating
   isAdmin?: boolean; // Determines if user is admin (can edit featured status)
+  artists?: Array<{ id: number; name: string; email?: string | null }>; // List of artists for admin dropdown
 }
 
 export default function ArtworkModal({ 
@@ -48,7 +49,8 @@ export default function ArtworkModal({
   onArtworkDeleted,
   artistId,
   mode = artwork ? 'edit' : 'create',
-  isAdmin = false
+  isAdmin = false,
+  artists = []
 }: ArtworkModalProps) {
   const [isEditing, setIsEditing] = useState(mode === 'create');
   const [editedArtwork, setEditedArtwork] = useState<Partial<Artwork & ArtworkWithDisplayOrder> | null>(null);
@@ -59,6 +61,7 @@ export default function ArtworkModal({
   const [isUploading, setIsUploading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedArtistId, setSelectedArtistId] = useState<number>(artistId);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Validation function
@@ -102,7 +105,7 @@ export default function ArtworkModal({
           price: '0',
           status: 'Draft',
           featured: 0,
-          artistId: artistId
+          artistId: selectedArtistId
         });
         setIsEditing(true);
         setImageFile(null);
@@ -111,6 +114,7 @@ export default function ArtworkModal({
         setIsSubmitting(false);
       } else if (artwork) {
         setEditedArtwork({ ...artwork });
+        setSelectedArtistId(artwork.artistId);
         setIsEditing(false);
         setImageFile(null);
         setImagePreview(null);
@@ -118,7 +122,7 @@ export default function ArtworkModal({
         setIsSubmitting(false);
       }
     }
-  }, [artwork, isOpen, mode, artistId]);
+  }, [artwork, isOpen, mode, selectedArtistId]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -150,6 +154,18 @@ export default function ArtworkModal({
     
     // Real-time validation
     validateForm(updatedArtwork);
+  };
+
+  const handleArtistChange = (artistId: number) => {
+    setSelectedArtistId(artistId);
+    if (editedArtwork) {
+      const updatedArtwork = {
+        ...editedArtwork,
+        artistId: artistId
+      };
+      setEditedArtwork(updatedArtwork);
+      validateForm(updatedArtwork);
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -232,9 +248,10 @@ export default function ArtworkModal({
     if (!editedArtwork || isSubmitting) return;
 
     // Check if artistId is valid
-    if (!artistId || artistId <= 0) {
+    const currentArtistId = isAdmin ? selectedArtistId : artistId;
+    if (!currentArtistId || currentArtistId <= 0) {
       toast.error('Invalid artist ID', {
-        description: 'Please contact an administrator to set up your artist profile',
+        description: isAdmin ? 'Please select an artist' : 'Please contact an administrator to set up your artist profile',
         icon: <XCircle className="h-4 w-4" />
       });
       return;
@@ -288,7 +305,7 @@ export default function ArtworkModal({
         ...editedArtwork,
         originalImage,
         watermarkedImage,
-        artistId: mode === 'create' ? artistId : editedArtwork.artistId
+        artistId: mode === 'create' ? currentArtistId : editedArtwork.artistId
       };
 
       let result;
@@ -566,6 +583,28 @@ export default function ArtworkModal({
                     <p className="mt-1 text-sm text-red-600">{validationErrors.title[0]}</p>
                   )}
                 </div>
+
+                {/* Artist Selection - Only show for admins in create mode */}
+                {isAdmin && mode === 'create' && (
+                  <div>
+                    <Label htmlFor="artist" className="text-sm font-medium text-gray-700">Artist <span className="text-red-500">*</span></Label>
+                    <Select value={selectedArtistId.toString()} onValueChange={(value) => handleArtistChange(parseInt(value))}>
+                      <SelectTrigger className={`mt-1 ${validationErrors.artistId ? 'border-red-500 focus:border-red-500' : ''}`}>
+                        <SelectValue placeholder="Select an artist" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {artists.map((artist) => (
+                          <SelectItem key={artist.id} value={artist.id.toString()}>
+                            {artist.name} {artist.email && `(${artist.email})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {validationErrors.artistId && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.artistId[0]}</p>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>

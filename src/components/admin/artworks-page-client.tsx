@@ -23,9 +23,10 @@ interface ArtworksPageClientProps {
     worth: number;
   };
   locations: string[];
+  artists?: Array<{ id: number; name: string; email?: string | null }>;
 }
 
-export default function ArtworksPageClient({ artworks, pendingArtworks, stats, locations }: ArtworksPageClientProps) {
+export default function ArtworksPageClient({ artworks, pendingArtworks, stats, locations, artists = [] }: ArtworksPageClientProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -168,7 +169,10 @@ export default function ArtworksPageClient({ artworks, pendingArtworks, stats, l
           onClose={() => setShowAddModal(false)}
           onArtworkUpdated={handleArtworkUpdated}
           onArtworkDeleted={handleArtworkUpdated}
-          artistId={1} // Default artist ID for new artworks
+          artistId={artists.length > 0 ? artists[0].id : 1} // Use first artist or default
+          mode="create"
+          isAdmin={true}
+          artists={artists}
         />
       )}
     </div>
