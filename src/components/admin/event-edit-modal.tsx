@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,6 +123,59 @@ export default function EventEditModal({
   const [imagePreview, setImagePreview] = useState<string | null>(event.featuredImage);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Update form data when event prop changes
+  useEffect(() => {
+    if (isOpen && event) {
+      setFormData({
+        // Basic Information
+        title: event.title,
+        description: event.description,
+        eventType: event.eventType,
+        slug: event.slug,
+        status: event.status || 'Upcoming',
+        
+        // Dates and Times
+        startDate: event.startDate.split('T')[0], // Convert to YYYY-MM-DD format
+        startTime: extractTimeFromISO(event.startDate), // Extract time using helper function
+        endDate: event.endDate ? event.endDate.split('T')[0] : '',
+        endTime: event.endDate ? extractTimeFromISO(event.endDate) : '',
+        
+        // Location
+        location: event.location || '',
+        address: event.address || '',
+        
+        // Image
+        featuredImage: event.featuredImage || '',
+        
+        // Registration Settings
+        registrationEnabled: event.registrationEnabled,
+        registrationType: event.registrationType,
+        registrationUrl: event.registrationUrl || '',
+        paymentEnabled: event.paymentEnabled,
+        isFreeEvent: event.isFreeEvent,
+        chabadPay: event.chabadPay || false,
+        
+        
+        // Recurring Settings
+        isRecurring: event.isRecurring,
+        recurringType: event.recurringType || '',
+        recurringStartTime: event.recurringStartTime || '',
+        recurringStartAmpm: event.recurringStartAmpm || 'AM',
+        recurringEndTime: event.recurringEndTime || '',
+        recurringEndAmpm: event.recurringEndAmpm || 'PM',
+        
+        // Additional Fields
+        parentEventId: event.parentEventId?.toString() || '',
+        isRecurringInstance: event.isRecurringInstance || false,
+        paymentTiers: event.paymentTiers ? JSON.stringify(event.paymentTiers, null, 2) : '',
+      });
+      
+      // Reset image preview and file when event changes
+      setImagePreview(event.featuredImage);
+      setImageFile(null);
+    }
+  }, [event, isOpen]);
 
   const handleInputChange = (field: string, value: string | boolean | number) => {
     setFormData(prev => ({
