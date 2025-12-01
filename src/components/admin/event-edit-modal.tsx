@@ -25,7 +25,8 @@ import {
   Loader2, 
   CheckCircle, 
   XCircle,
-  Trash2
+  Trash2,
+  ExternalLink
 } from "lucide-react";
 import Image from "next/image";
 import type { EventListItem } from "@/types";
@@ -97,6 +98,7 @@ export default function EventEditModal({
     // Registration Settings
     registrationEnabled: event.registrationEnabled,
     registrationType: event.registrationType,
+    registrationUrl: event.registrationUrl || '',
     paymentEnabled: event.paymentEnabled,
     isFreeEvent: event.isFreeEvent,
     chabadPay: event.chabadPay || false,
@@ -222,6 +224,11 @@ export default function EventEditModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (formData.registrationEnabled && formData.registrationType === 'external' && !formData.registrationUrl.trim()) {
+      toast.error("Registration URL is required when using external registration");
+      return;
+    }
+    
     startTransition(async () => {
       try {
         // Combine date and time for start and end dates
@@ -279,6 +286,7 @@ export default function EventEditModal({
           featuredImage: featuredImageUrl || null,
           registrationEnabled: formData.registrationEnabled,
           registrationType: formData.registrationType,
+          registrationUrl: formData.registrationType === 'external' && formData.registrationUrl.trim() ? formData.registrationUrl.trim() : null,
           paymentEnabled: formData.paymentEnabled,
           isFreeEvent: formData.isFreeEvent,
           chabadPay: formData.chabadPay,
@@ -615,6 +623,52 @@ export default function EventEditModal({
                 </div>
 
               </div>
+
+              {formData.registrationType === 'external' && (
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="registrationUrl" className="text-sm font-medium text-gray-700">
+                      Registration URL <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="registrationUrl"
+                      type="url"
+                      value={formData.registrationUrl}
+                      onChange={(e) => handleInputChange("registrationUrl", e.target.value)}
+                      placeholder="https://example.com/register"
+                      className="mt-1"
+                      disabled={isPending}
+                    />
+                    <p className="text-sm text-gray-500 mt-1">
+                      Enter the external registration link
+                    </p>
+                  </div>
+
+                  {formData.registrationUrl && (
+                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-700 mb-1">Preview</p>
+                          <p className="text-sm text-gray-600 truncate" title={formData.registrationUrl}>
+                            {formData.registrationUrl}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(formData.registrationUrl, '_blank', 'noopener,noreferrer')}
+                          className="flex items-center gap-2 shrink-0"
+                          disabled={isPending}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Open Link
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="flex items-center space-x-2">

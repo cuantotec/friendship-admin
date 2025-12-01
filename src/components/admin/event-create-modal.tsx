@@ -23,7 +23,8 @@ import {
   Loader2, 
   CheckCircle, 
   XCircle,
-  MapPin
+  MapPin,
+  ExternalLink
 } from "lucide-react";
 import Image from "next/image";
 
@@ -68,6 +69,7 @@ export default function EventCreateModal({
     // Registration Settings
     registrationEnabled: false,
     registrationType: 'modal',
+    registrationUrl: '',
     paymentEnabled: false,
     isFreeEvent: true,
     chabadPay: false,
@@ -203,6 +205,11 @@ export default function EventCreateModal({
       return;
     }
 
+    if (formData.registrationEnabled && formData.registrationType === 'external' && !formData.registrationUrl.trim()) {
+      toast.error("Registration URL is required when using external registration");
+      return;
+    }
+
     startTransition(async () => {
       try {
         // Upload image if selected
@@ -250,7 +257,7 @@ export default function EventCreateModal({
           location: formData.location, // Hardcoded to "The Friendship Center Gallery"
           address: formData.address || null,
           externalUrl: null,
-          registrationUrl: null,
+          registrationUrl: formData.registrationType === 'external' && formData.registrationUrl.trim() ? formData.registrationUrl.trim() : null,
           registrationType: formData.registrationType,
           status: formData.status,
           featuredImage: imageUrl || null,
@@ -293,6 +300,7 @@ export default function EventCreateModal({
             featuredImage: '',
             registrationEnabled: false,
             registrationType: 'modal',
+            registrationUrl: '',
             paymentEnabled: false,
             isFreeEvent: true,
             chabadPay: false,
@@ -579,6 +587,48 @@ export default function EventCreateModal({
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {formData.registrationType === 'external' && (
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="registrationUrl">Registration URL *</Label>
+                        <Input
+                          id="registrationUrl"
+                          type="url"
+                          value={formData.registrationUrl}
+                          onChange={(e) => handleInputChange('registrationUrl', e.target.value)}
+                          placeholder="https://example.com/register"
+                          className="mt-1"
+                        />
+                        <p className="text-sm text-gray-500 mt-1">
+                          Enter the external registration link
+                        </p>
+                      </div>
+
+                      {formData.registrationUrl && (
+                        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-700 mb-1">Preview</p>
+                              <p className="text-sm text-gray-600 truncate" title={formData.registrationUrl}>
+                                {formData.registrationUrl}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(formData.registrationUrl, '_blank', 'noopener,noreferrer')}
+                              className="flex items-center gap-2 shrink-0"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                              Open Link
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between">
                     <div>
